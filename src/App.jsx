@@ -1,9 +1,13 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ChatProvider } from './context/ChatContext'
+import { CallProvider } from './context/CallContext'
 import LoginPage from './pages/LoginPage'
 import ProfileSetupPage from './pages/ProfileSetupPage'
 import MainLayout from './pages/MainLayout'
+import AppLockScreen from './components/chat/AppLockScreen'
+import { isAppLockEnabled, isUnlockedThisSession } from './lib/appLock'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -40,7 +44,9 @@ function AppRoutes() {
       <Route path="/*" element={
         <ProfileRoute>
           <ChatProvider>
-            <MainLayout />
+            <CallProvider>
+              <MainLayout />
+            </CallProvider>
           </ChatProvider>
         </ProfileRoute>
       } />
@@ -49,9 +55,22 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [locked, setLocked] = useState(isAppLockEnabled() && !isUnlockedThisSession())
+
+  // Re-check whenever the tab regains focus (covers the "left it open, came back" case)
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible' && isAppLockEnabled() && !isUnlockedThisSession()) {
+        setLocked(true)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
   return (
     <AuthProvider>
-      <AppRoutes />
+      {locked ? <AppLockScreen onUnlock={() => setLocked(false)} /> : <AppRoutes />}
     </AuthProvider>
   )
 }

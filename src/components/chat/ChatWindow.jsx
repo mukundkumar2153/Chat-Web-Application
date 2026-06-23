@@ -2,11 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   MoreVertical, Phone, Video, Search, Smile, Paperclip, Mic,
   Send, X, Reply, Trash2, Forward, ArrowLeft, CheckCheck,
-  Image as ImageIcon, FileText, Film, Lock, Square, Trash,
+  Image as ImageIcon, FileText, Film, Lock, Square, Trash, Star, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import EmojiPicker from 'emoji-picker-react'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
+import { useCall } from '../../context/CallContext'
 import Avatar from '../ui/Avatar'
 import MediaBubble from './MediaBubble'
 import Lightbox from './Lightbox'
@@ -54,17 +55,19 @@ function ReactionBar({ reactions, myId, onReact, messageId }) {
   )
 }
 
-function MessageBubble({ msg, isOut, onReply, onDelete, onReact, myId, conversationId, onOpenLightbox }) {
+function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, myId, conversationId, onOpenLightbox, highlight }) {
   const [showActions, setShowActions] = useState(false)
   const [showEmojiQuick, setShowEmojiQuick] = useState(false)
   const isDeleted = !!msg.deleted_at
   const isMedia = ['image', 'video', 'document', 'voice'].includes(msg.message_type)
+  const isStarred = (msg.starred_by || []).includes(myId)
 
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
   return (
     <div
-      className={`message-row ${isOut ? 'outgoing' : 'incoming'}`}
+      id={`msg-${msg.id}`}
+      className={`message-row ${isOut ? 'outgoing' : 'incoming'} ${highlight ? 'highlighted' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowEmojiQuick(false) }}
     >
@@ -96,6 +99,9 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, myId, conversat
               )}
             </div>
             <button className="action-btn" onClick={() => onReply(msg)} title="Reply"><Reply size={13} /></button>
+            <button className="action-btn" onClick={() => onToggleStar(msg)} title={isStarred ? 'Unstar' : 'Star'}>
+              <Star size={13} fill={isStarred ? 'var(--warning)' : 'none'} color={isStarred ? 'var(--warning)' : undefined} />
+            </button>
             <button className="action-btn" title="Forward"><Forward size={13} /></button>
             {isOut && (
               <button className="action-btn" style={{ color: 'var(--danger)' }} onClick={() => onDelete(msg.id)} title="Delete">
@@ -145,12 +151,13 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, myId, conversat
   )
 }
 
-export default function ChatWindow({ onBack }) {
+export default function ChatWindow({ onBack, onOpenContactInfo }) {
   const { user, profile } = useAuth()
   const {
     activeConversation, messages, typingUsers, sendMessage, sendMediaMessage,
-    deleteMessage, reactToMessage, sendTypingIndicator, onlineUsers, uploadProgress,
+    deleteMessage, reactToMessage, toggleStarMessage, sendTypingIndicator, onlineUsers, uploadProgress,
   } = useChat()
+  const { startCall } = useCall()
   const [text, setText] = useState('')
   const [replyTo, setReplyTo] = useState(null)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -158,6 +165,9 @@ export default function ChatWindow({ onBack }) {
   const [dragOver, setDragOver] = useState(false)
   const [lightboxSrc, setLightboxSrc] = useState(null)
   const [fileError, setFileError] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchMatchIdx, setSearchMatchIdx] = useState(0)
 
   // voice recording state
   const [recording, setRecording] = useState(false)
@@ -298,6 +308,30 @@ export default function ChatWindow({ onBack }) {
   const convName = conv?.is_group ? conv?.name : otherUser?.display_name || 'Unknown'
   const convAvatar = conv?.is_group ? conv?.group_avatar_url : otherUser?.avatar_url
 
+  // ---- in-chat search ----
+  const searchMatches = searchTerm.trim()
+    ? messages.filter(m => !m.deleted_at && m.content?.toLowerCase().includes(searchTerm.toLowerCase()))
+    : []
+
+  useEffect(() => { setSearchMatchIdx(0) }, [searchTerm])
+
+  useEffect(() => {
+    if (!showSearch || searchMatches.length === 0) return
+    const target = searchMatches[searchMatchIdx]
+    if (target) {
+      document.getElementById(`msg-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [searchMatchIdx, showSearch, searchMatches.length])
+
+  function goToNextMatch() {
+    if (searchMatches.length === 0) return
+    setSearchMatchIdx(i => (i + 1) % searchMatches.length)
+  }
+  function goToPrevMatch() {
+    if (searchMatches.length === 0) return
+    setSearchMatchIdx(i => (i - 1 + searchMatches.length) % searchMatches.length)
+  }
+
   if (!conv) {
     return (
       <div className="chat-window">
@@ -332,26 +366,53 @@ export default function ChatWindow({ onBack }) {
         <button className="icon-btn" onClick={onBack} style={{ display: 'none' }} id="back-btn">
           <ArrowLeft size={20} />
         </button>
-        <Avatar src={convAvatar} name={convName} size={12} showOnline={!conv.is_group} isOnline={isOnline} />
-        <div className="chat-header-info">
-          <div className="chat-header-name">{convName}</div>
-          <div className={`chat-header-status ${isOnline ? 'online' : ''}`}>
-            {typingNames.length > 0
-              ? `${typingNames[0]} is typing...`
-              : conv.is_group
-              ? `${conv.members_count || ''} members`
-              : isOnline ? 'Online' : otherUser?.last_seen
-              ? `Last seen ${format(new Date(otherUser.last_seen), 'dd MMM, HH:mm')}`
-              : 'Offline'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => onOpenContactInfo?.(conv)}>
+          <Avatar src={convAvatar} name={convName} size={12} showOnline={!conv.is_group} isOnline={isOnline} />
+          <div className="chat-header-info">
+            <div className="chat-header-name">{convName}</div>
+            <div className={`chat-header-status ${isOnline ? 'online' : ''}`}>
+              {typingNames.length > 0
+                ? `${typingNames[0]} is typing...`
+                : conv.is_group
+                ? `${conv.members_count || ''} members`
+                : isOnline ? 'Online' : otherUser?.last_seen
+                ? `Last seen ${format(new Date(otherUser.last_seen), 'dd MMM, HH:mm')}`
+                : 'Offline'}
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px' }}>
-          <button className="icon-btn" title="Voice call"><Phone size={18} /></button>
-          <button className="icon-btn" title="Video call"><Video size={18} /></button>
-          <button className="icon-btn" title="Search in chat"><Search size={18} /></button>
-          <button className="icon-btn"><MoreVertical size={18} /></button>
+          {!conv.is_group && (
+            <>
+              <button className="icon-btn" title="Voice call" onClick={() => startCall(otherUser, conv.id, 'voice')}><Phone size={18} /></button>
+              <button className="icon-btn" title="Video call" onClick={() => startCall(otherUser, conv.id, 'video')}><Video size={18} /></button>
+            </>
+          )}
+          <button className="icon-btn" title="Search in chat" onClick={() => setShowSearch(p => !p)} style={{ color: showSearch ? 'var(--accent)' : undefined }}><Search size={18} /></button>
+          <button className="icon-btn" onClick={() => onOpenContactInfo?.(conv)}><MoreVertical size={18} /></button>
         </div>
       </div>
+
+      {showSearch && (
+        <div className="chat-search-bar">
+          <Search size={15} color="var(--text-muted)" />
+          <input
+            autoFocus
+            placeholder="Search in this chat..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') goToNextMatch() }}
+          />
+          {searchTerm && (
+            <span className="chat-search-count">
+              {searchMatches.length ? `${searchMatchIdx + 1}/${searchMatches.length}` : '0/0'}
+            </span>
+          )}
+          <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={goToPrevMatch}><ChevronUp size={14} /></button>
+          <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={goToNextMatch}><ChevronDown size={14} /></button>
+          <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => { setShowSearch(false); setSearchTerm('') }}><X size={14} /></button>
+        </div>
+      )}
 
       <div className="messages-area">
         <EncryptionBanner />
@@ -369,7 +430,9 @@ export default function ChatWindow({ onBack }) {
               onReply={setReplyTo}
               onDelete={deleteMessage}
               onReact={reactToMessage}
+              onToggleStar={toggleStarMessage}
               onOpenLightbox={setLightboxSrc}
+              highlight={searchMatches[searchMatchIdx]?.id === msg.id}
             />
           )
         })}
