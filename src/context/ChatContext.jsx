@@ -25,6 +25,9 @@ export function ChatProvider({ children }) {
   const activeConvRef = useRef(null)
   useEffect(() => { activeConvRef.current = activeConversation }, [activeConversation])
 
+  const conversationIdsRef = useRef(new Set())
+  useEffect(() => { conversationIdsRef.current = new Set(conversations.map(c => c.id)) }, [conversations])
+
   // ---------- decryption helpers ----------
 
   const decryptMessageRow = useCallback(async (row, conversationId) => {
@@ -76,7 +79,7 @@ export function ChatProvider({ children }) {
             .select('profiles:user_id (id, display_name, avatar_url, status_text, last_seen, is_online, public_key)')
             .eq('conversation_id', conv.id)
             .neq('user_id', user.id)
-            .single()
+            .maybeSingle()
           conv.other_user = otherMember?.profiles || null
         }
 
@@ -93,7 +96,7 @@ export function ChatProvider({ children }) {
           .eq('conversation_id', conv.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
+          .maybeSingle()
 
         let lastMsg = lastMsgRaw
         if (lastMsgRaw && !lastMsgRaw.deleted_at) {
@@ -128,7 +131,15 @@ export function ChatProvider({ children }) {
   const fetchMessages = useCallback(async (conversationId) => {
     if (!conversationId) return
     setLoadingMessages(true)
-    const { data } = await supabase
+
+    const { data: memberRow } = await supabase
+      .from('conversation_members')
+      .select('cleared_at')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    let query = supabase
       .from('messages')
       .select(`
         *,
@@ -144,6 +155,10 @@ export function ChatProvider({ children }) {
       `)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
+
+    if (memberRow?.cleared_at) query = query.gt('created_at', memberRow.cleared_at)
+
+    const { data } = await query
 
     const decrypted = await Promise.all((data || []).map(row => decryptMessageRow(row, conversationId)))
     setMessages(decrypted)
@@ -282,6 +297,24 @@ export function ChatProvider({ children }) {
     fetchConversations()
   }, [user, fetchConversations])
 
+  const toggleStarMessage = useCallback(async (msg) => {
+    const isStarred = (msg.starred_by || []).includes(user.id)
+    const newArr = isStarred ? msg.starred_by.filter(id => id !== user.id) : [...(msg.starred_by || []), user.id]
+    await supabase.from('messages').update({ starred_by: newArr }).eq('id', msg.id)
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, starred_by: newArr } : m))
+  }, [user])
+
+  const markAllAsRead = useCallback(async () => {
+    await supabase.from('conversation_members').update({ last_read_at: new Date().toISOString() }).eq('user_id', user.id)
+    fetchConversations()
+  }, [user, fetchConversations])
+
+  const deleteConversations = useCallback(async (conversationIds) => {
+    await supabase.from('conversation_members').delete().eq('user_id', user.id).in('conversation_id', conversationIds)
+    if (conversationIds.includes(activeConvRef.current?.id)) setActiveConversation(null)
+    fetchConversations()
+  }, [user, fetchConversations])
+
   // ---------- realtime ----------
 
   useEffect(() => {
@@ -326,6 +359,28 @@ export function ChatProvider({ children }) {
 
     return () => supabase.removeChannel(channel)
   }, [user, activeConversation, decryptMessageRow, fetchConversations])
+
+  // ---------- global listener (updates sidebar even for chats not currently open) ----------
+
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel('global-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const convId = payload.new.conversation_id
+        if (!conversationIdsRef.current.has(convId)) return
+        fetchConversations()
+      })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'conversation_members', filter: `user_id=eq.${user.id}`,
+      }, () => {
+        // I was just added to a (new) conversation — pull it into the sidebar
+        fetchConversations()
+      })
+      .subscribe()
+
+    return () => supabase.removeChannel(channel)
+  }, [user, fetchConversations])
 
   // ---------- presence ----------
 
@@ -375,6 +430,9 @@ export function ChatProvider({ children }) {
       deleteMessage,
       reactToMessage,
       togglePinConversation,
+      toggleStarMessage,
+      markAllAsRead,
+      deleteConversations,
       sendTypingIndicator,
     }}>
       {children}

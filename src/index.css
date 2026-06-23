@@ -96,458 +96,6 @@ a { text-decoration: none; color: inherit; }
   overflow: hidden;
 }
 
-
-/* ============================================
-   LAYOUT FIX - main content area
-   ============================================ */
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
-
-/* ============================================
-   CONTACT INFO PANEL
-   ============================================ */
-.contact-info-panel {
-  width: 340px;
-  min-width: 320px;
-  max-width: 360px;
-  height: 100vh;
-  background: var(--bg-primary);
-  border-left: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.contact-info-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
-  gap: 12px;
-}
-
-.contact-info-body {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 24px;
-}
-
-.contact-info-profile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 28px 20px 20px;
-  background: var(--bg-surface);
-  border-bottom: 8px solid var(--bg-primary);
-  gap: 8px;
-}
-
-.contact-info-name {
-  font-size: 20px;
-  font-weight: 700;
-  font-family: var(--font-display);
-  color: var(--text-primary);
-  text-align: center;
-  margin-top: 8px;
-}
-
-.contact-info-phone {
-  font-size: 14px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.contact-info-actions {
-  display: flex;
-  gap: 24px;
-  margin-top: 16px;
-}
-
-.contact-action-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  color: var(--accent);
-}
-
-.contact-action-btn span {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.contact-action-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--bg-elevated);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
-  transition: background 0.2s;
-}
-
-.contact-action-icon:hover {
-  background: var(--accent);
-  color: white;
-}
-
-.contact-info-section {
-  background: var(--bg-surface);
-  margin-bottom: 8px;
-  padding: 4px 0;
-}
-
-.contact-info-field {
-  padding: 12px 20px;
-}
-
-.contact-info-field-label {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
-
-.contact-info-field-value {
-  font-size: 14px;
-  color: var(--text-primary);
-  line-height: 1.5;
-}
-
-.contact-info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  cursor: pointer;
-  transition: background 0.15s;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.contact-info-row:hover {
-  background: var(--bg-elevated);
-}
-
-.contact-info-row-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.contact-info-row-icon {
-  width: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-}
-
-.danger-row:hover {
-  background: rgba(255, 84, 112, 0.08);
-}
-
-/* Media grid */
-.media-grid-preview {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
-  padding: 0 20px 12px;
-}
-
-.media-grid-item {
-  aspect-ratio: 1;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--bg-elevated);
-}
-
-.media-grid-img,
-.media-grid-video,
-.media-grid-doc {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-elevated);
-}
-
-.media-grid-video {
-  background: #1a1a2e;
-}
-
-/* ============================================
-   CALL MODAL
-   ============================================ */
-.call-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.call-modal-bg {
-  position: absolute;
-  inset: 0;
-  background: rgba(10, 10, 20, 0.92);
-  backdrop-filter: blur(12px);
-}
-
-.call-remote-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.6;
-}
-
-.call-modal-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 32px;
-  padding: 48px 32px;
-  min-width: 300px;
-}
-
-.call-user-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.call-avatar-wrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.call-ring-pulse {
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  animation: ring-pulse 1.5s ease-out infinite;
-}
-
-@keyframes ring-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
-
-.call-user-name {
-  font-size: 26px;
-  font-weight: 700;
-  color: white;
-  font-family: var(--font-display);
-}
-
-.call-status-text {
-  font-size: 15px;
-  color: rgba(255,255,255,0.7);
-}
-
-.call-local-video-wrap {
-  position: absolute;
-  bottom: 120px;
-  right: 24px;
-  width: 120px;
-  height: 160px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 2px solid rgba(255,255,255,0.3);
-  background: #111;
-}
-
-.call-local-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.call-controls {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-}
-
-.call-control-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255,255,255,0.8);
-  font-size: 12px;
-}
-
-.call-btn {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255,255,255,0.15);
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  backdrop-filter: blur(4px);
-}
-
-.call-btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
-.call-btn-active { background: rgba(255,255,255,0.9) !important; color: #111 !important; }
-.call-btn-end { background: var(--danger) !important; }
-.call-btn-end:hover { background: #e0243a !important; }
-.call-btn-accept { background: var(--online) !important; }
-.call-btn-accept:hover { background: #1ab877 !important; }
-
-/* ============================================
-   APP LOCK SCREEN
-   ============================================ */
-.applock-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: var(--bg-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.applock-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  width: 280px;
-}
-
-.applock-logo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.applock-dots {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 8px;
-}
-
-.applock-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  background: transparent;
-  transition: background 0.2s;
-}
-
-.applock-dot.filled {
-  background: var(--accent);
-}
-
-.applock-numpad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  width: 100%;
-}
-
-.applock-key {
-  height: 64px;
-  border-radius: 50%;
-  border: none;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.applock-key:hover { background: var(--accent); color: white; transform: scale(1.05); }
-.applock-key:active { transform: scale(0.95); }
-.applock-key.invisible { background: transparent; cursor: default; pointer-events: none; }
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-8px); }
-  40%, 80% { transform: translateX(8px); }
-}
-.shake { animation: shake 0.4s ease; }
-
-/* ============================================
-   IN-CHAT SEARCH BAR
-   ============================================ */
-.chat-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.chat-search-bar input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.chat-search-count {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.message-row.highlighted .bubble {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ============================================
-   DROPDOWN DIVIDER
-   ============================================ */
-.dropdown-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 4px 0;
-}
-
-/* ============================================
-   AVATAR SIZE FIX for large sizes
-   ============================================ */
-.avatar-img.size-20 { width: 80px; height: 80px; font-size: 28px; }
-
 /* Sidebar */
 .sidebar {
   width: var(--sidebar-w);
@@ -1782,4 +1330,471 @@ a { text-decoration: none; color: inherit; }
 @keyframes rec-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.85); }
+}
+/* ============================================
+   LAYOUT FIX - main content area
+   ============================================ */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ============================================
+   CONTACT INFO PANEL
+   ============================================ */
+.contact-info-panel {
+  width: 340px;
+  min-width: 320px;
+  max-width: 360px;
+  height: 100vh;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.contact-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  gap: 12px;
+}
+
+.contact-info-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+
+.contact-info-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 20px 20px;
+  background: var(--bg-surface);
+  border-bottom: 8px solid var(--bg-primary);
+  gap: 8px;
+}
+
+.contact-info-name {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  text-align: center;
+  margin-top: 8px;
+}
+
+.contact-info-phone {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.contact-info-actions {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.contact-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.contact-action-btn span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contact-action-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  transition: background 0.2s;
+}
+
+.contact-action-icon:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.contact-info-section {
+  background: var(--bg-surface);
+  margin-bottom: 8px;
+  padding: 4px 0;
+}
+
+.contact-info-field {
+  padding: 12px 20px;
+}
+
+.contact-info-field-label {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.contact-info-field-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.contact-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.contact-info-row:hover {
+  background: var(--bg-elevated);
+}
+
+.contact-info-row-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.contact-info-row-icon {
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.danger-row:hover {
+  background: rgba(255, 84, 112, 0.08);
+}
+
+/* Media grid */
+.media-grid-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 0 20px 12px;
+}
+
+.media-grid-item {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.media-grid-img,
+.media-grid-video,
+.media-grid-doc {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+}
+
+.media-grid-video {
+  background: #1a1a2e;
+}
+
+/* ============================================
+   CALL MODAL
+   ============================================ */
+.call-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.call-modal-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 20, 0.92);
+  backdrop-filter: blur(12px);
+}
+
+.call-remote-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.6;
+}
+
+.call-modal-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 48px 32px;
+  min-width: 300px;
+}
+
+.call-user-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.call-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.call-ring-pulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: ring-pulse 1.5s ease-out infinite;
+}
+
+@keyframes ring-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+.call-user-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: white;
+  font-family: var(--font-display);
+}
+
+.call-status-text {
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+}
+
+.call-local-video-wrap {
+  position: absolute;
+  bottom: 120px;
+  right: 24px;
+  width: 120px;
+  height: 160px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+  background: #111;
+}
+
+.call-local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.call-controls {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.call-control-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+}
+
+.call-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.call-btn:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+.call-btn-active { background: rgba(255,255,255,0.9) !important; color: #111 !important; }
+.call-btn-end { background: var(--danger) !important; }
+.call-btn-end:hover { background: #e0243a !important; }
+.call-btn-accept { background: var(--online) !important; }
+.call-btn-accept:hover { background: #1ab877 !important; }
+
+/* ============================================
+   APP LOCK SCREEN
+   ============================================ */
+.applock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.applock-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 280px;
+}
+
+.applock-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.applock-dots {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.applock-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: transparent;
+  transition: background 0.2s;
+}
+
+.applock-dot.filled {
+  background: var(--accent);
+}
+
+.applock-numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.applock-key {
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.applock-key:hover { background: var(--accent); color: white; transform: scale(1.05); }
+.applock-key:active { transform: scale(0.95); }
+.applock-key.invisible { background: transparent; cursor: default; pointer-events: none; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.shake { animation: shake 0.4s ease; }
+
+/* ============================================
+   IN-CHAT SEARCH BAR
+   ============================================ */
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.chat-search-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.message-row.highlighted .bubble {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   DROPDOWN DIVIDER
+   ============================================ */
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ============================================
+   AVATAR SIZE FIX for large sizes
+   ============================================ */
+.avatar-img.size-20 { width: 80px; height: 80px; font-size: 28px; }
+
+
+/* Settings Profile Card */
+.settings-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 8px;
+  transition: background 0.15s;
+}
+.settings-profile-card:hover {
+  background: var(--bg-elevated);
 }

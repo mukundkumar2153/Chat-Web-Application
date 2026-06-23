@@ -19,6 +19,9 @@ export default function MainLayout() {
   const [showStarred, setShowStarred] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
 
+  // Close contact info when conversation changes
+  const handleSetConversation = () => setShowContactInfo(false)
+
   return (
     <div className="app-layout">
       {/* Sidebar */}
@@ -27,26 +30,27 @@ export default function MainLayout() {
         setActiveTab={setActiveTab}
         onNewChat={() => setShowNewChat(true)}
         onNewGroup={() => setShowNewGroup(true)}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => { setShowSettings(true); setActiveTab('settings') }}
         onOpenStarred={() => setShowStarred(true)}
       />
 
-      {/* Main content */}
+      {/* Main content area */}
       <div className="main-content">
         {showSettings ? (
           <SettingsPage onBack={() => { setShowSettings(false); setActiveTab('chats') }} />
         ) : (
           <ChatWindow
             onBack={() => {}}
-            onOpenContactInfo={() => setShowContactInfo(true)}
-            onOpenSearch={() => setSearchOpen(true)}
+            onOpenContactInfo={() => {
+              if (activeConversation) setShowContactInfo(true)
+            }}
             searchOpen={searchOpen}
             setSearchOpen={setSearchOpen}
           />
         )}
       </div>
 
-      {/* Contact Info Side Panel */}
+      {/* Contact Info Side Panel - only when conversation selected */}
       {showContactInfo && activeConversation && (
         <ContactInfoPanel
           conversation={activeConversation}
@@ -56,12 +60,12 @@ export default function MainLayout() {
         />
       )}
 
-      {/* Modals */}
+      {/* Modals (overlay) */}
       {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}
       {showNewGroup && <NewGroupModal onClose={() => setShowNewGroup(false)} />}
       {showStarred && <StarredMessagesModal onClose={() => setShowStarred(false)} />}
 
-      {/* Call Modal - always rendered, shows when call is active */}
+      {/* Call Modal - portal style, fixed overlay, only shows during active call */}
       <CallModal />
     </div>
   )
