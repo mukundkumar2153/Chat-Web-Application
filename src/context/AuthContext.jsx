@@ -66,9 +66,17 @@ export function AuthProvider({ children }) {
     } else if (hasPrivateKey(userId)) {
       setEncryptionStatus('ready')
     } else {
-      setEncryptionStatus('missing-local-key')
+      // No local private key on this device — auto-generate a fresh keypair
+      // instead of showing an error. Old encrypted messages on other devices
+      // become unreadable on THIS device, but chat keeps working going forward.
+      const { publicKey, secretKey } = generateIdentityKeyPair()
+      storePrivateKey(userId, secretKey)
+      const { error } = await supabase.from('profiles').update({ public_key: publicKey }).eq('id', userId)
+      if (!error) {
+        setProfile(prev => prev ? { ...prev, public_key: publicKey } : prev)
+        setEncryptionStatus('ready')
+      }
     }
-  }
 
   /**
    * Deliberate reset: wipes the old public key and generates a fresh
