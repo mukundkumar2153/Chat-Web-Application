@@ -173,15 +173,7 @@ export function ChatProvider({ children }) {
 
   // ---------- send text ----------
 
-  
-
-  // ---------- send media (image / video / document / voice) ----------
-
-  const sendMediaMessage = useCallback(async ({ conversationId, file, replyToId = null }) => {
-    const key = await getConversationKey({ conversationId, myUserId: user.id })
-    if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
-
-    setUploadProgress({ fileNameconst sendMessage = useCallback(async ({ conversationId, content, type = 'text', replyToId = null }) => {
+  const sendMessage = useCallback(async ({ conversationId, content, type = 'text', replyToId = null }) => {
     const key = await getConversationKey({ conversationId, myUserId: user.id })
     if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
 
@@ -215,7 +207,15 @@ export function ChatProvider({ children }) {
       setMessages(prev => [...prev, decrypted])
     }
     return { data, error }
-  }, [user, decryptMessageRow]): file.name, percent: 10 })
+  }, [user, decryptMessageRow])
+
+  // ---------- send media (image / video / document / voice) ----------
+
+  const sendMediaMessage = useCallback(async ({ conversationId, file, replyToId = null }) => {
+    const key = await getConversationKey({ conversationId, myUserId: user.id })
+    if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
+
+    setUploadProgress({ fileName: file.name, percent: 10 })
     let meta
     try {
       meta = await encryptAndUploadFile({
