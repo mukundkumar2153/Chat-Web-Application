@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { encryptText, decryptText } from '../lib/crypto'
-import { getConversationKey } from '../lib/encryption'
+import { getConversationKey, syncMissingMemberKeys } from '../lib/encryption'
 import { encryptAndUploadFile } from '../lib/media'
 
 const ChatContext = createContext({})
@@ -173,9 +173,19 @@ export function ChatProvider({ children }) {
 
   // ---------- send text ----------
 
-  const sendMessage = useCallback(async ({ conversationId, content, type = 'text', replyToId = null }) => {
+  
+
+  // ---------- send media (image / video / document / voice) ----------
+
+  const sendMediaMessage = useCallback(async ({ conversationId, file, replyToId = null }) => {
     const key = await getConversationKey({ conversationId, myUserId: user.id })
     if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
+
+    setUploadProgress({ fileNameconst sendMessage = useCallback(async ({ conversationId, content, type = 'text', replyToId = null }) => {
+    const key = await getConversationKey({ conversationId, myUserId: user.id })
+    if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
+
+    syncMissingMemberKeys({ conversationId, myUserId: user.id }) // catch-up for members who set up encryption later
 
     const { ciphertext, nonce } = encryptText(content, key)
 
@@ -205,15 +215,7 @@ export function ChatProvider({ children }) {
       setMessages(prev => [...prev, decrypted])
     }
     return { data, error }
-  }, [user, decryptMessageRow])
-
-  // ---------- send media (image / video / document / voice) ----------
-
-  const sendMediaMessage = useCallback(async ({ conversationId, file, replyToId = null }) => {
-    const key = await getConversationKey({ conversationId, myUserId: user.id })
-    if (!key) return { error: new Error('Encryption key unavailable for this conversation') }
-
-    setUploadProgress({ fileName: file.name, percent: 10 })
+  }, [user, decryptMessageRow]): file.name, percent: 10 })
     let meta
     try {
       meta = await encryptAndUploadFile({

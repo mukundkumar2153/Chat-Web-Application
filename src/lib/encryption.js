@@ -115,3 +115,51 @@ export async function memberHasEncryptionSetUp(userId) {
   const { data } = await supabase.from('profiles').select('public_key').eq('id', userId).single()
   return !!data?.public_key
 }
+
+/**
+ * Catch-up: wrap the existing conversation key for any member who now has
+ * a public_key but doesn't yet have a row in conversation_keys (e.g. they
+ * joined encryption-less, or their key was generated after this
+ * conversation/key was first created).
+ */
+export async function syncMissingMemberKeys({ conversationId, myUserId }) {
+  const keyBytes = await getConversationKey({ conversationId, myUserId })
+  if (!keyBytes) return // I don't even have the key myself, nothing to sync
+
+  const mySecretKey = getPrivateKey(myUserId)
+  if (!mySecretKey) return
+
+  const { data: members } = await supabase
+    .from('conversation_members')
+    .select('user_id, profiles:user_id (public_key)')
+    .eq('conversation_id', conversationId)
+  if (!members) return
+
+  const { data: existingKeys } = await supabase
+    .from('conversation_keys')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+  const haveKeyFor = new Set((existingKeys || []).map(r => r.user_id))
+
+  const rows = []
+  for (const m of members) {
+    if (haveKeyFor.has(m.user_id)) continue
+    if (!m.profiles?.public_key) continue
+    const { encrypted_key, nonce } = wrapKeyForMember({
+      conversationKeyBytes: keyBytes,
+      recipientPublicKeyBase64: m.profiles.public_key,
+      mySecretKeyBase64: mySecretKey,
+    })
+    rows.push({
+      conversation_id: conversationId,
+      user_id: m.user_id,
+      wrapped_by: myUserId,
+      encrypted_key,
+      nonce,
+    })
+  }
+
+  if (rows.length) {
+    await supabase.from('conversation_keys').insert(rows)
+  }
+}
