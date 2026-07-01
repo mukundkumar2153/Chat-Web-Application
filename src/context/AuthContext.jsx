@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
    *   overwrite an existing public key, since that would orphan every
    *   conversation key already wrapped for the old one.
    */
+  
   async function ensureEncryptionKeys(userId, profileData) {
     if (!profileData) return
     if (!profileData.public_key) {
@@ -77,6 +78,7 @@ export function AuthProvider({ children }) {
         setEncryptionStatus('ready')
       }
     }
+  }
 
   /**
    * Deliberate reset: wipes the old public key and generates a fresh
