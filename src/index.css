@@ -745,10 +745,16 @@ a { text-decoration: none; color: inherit; }
 
 .otp-inputs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  justify-content: center;  /* ← ADD */
+  flex-wrap: nowrap;         /* ← ADD */
+  overflow: hidden;          /* ← ADD */
+  width: 100%;               /* ← ADD */
 }
 .otp-digit {
   flex: 1;
+  min-width: 0;     /* ← ADD */
+  max-width: 52px;  /* ← ADD */
   text-align: center;
   font-size: 22px;
   font-weight: 700;
