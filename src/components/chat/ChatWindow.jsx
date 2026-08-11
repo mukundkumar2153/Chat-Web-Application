@@ -376,7 +376,12 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
                 : conv.is_group
                 ? `${conv.members_count || ''} members`
                 : isOnline ? 'Online' : otherUser?.last_seen
-                ? `Last seen ${format(new Date(otherUser.last_seen), 'dd MMM, HH:mm')}`
+                ? (() => {
+                    try {
+                      const d = new Date(otherUser.last_seen)
+                      return isNaN(d.getTime()) ? 'Offline' : `Last seen ${format(d, 'dd MMM, HH:mm')}`
+                    } catch { return 'Offline' }
+                  })()
                 : 'Offline'}
             </div>
           </div>
@@ -419,13 +424,14 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
         {grouped.map((item, i) => {
           if (item.type === 'date') return <DateDivider key={`date-${i}`} date={item.date} />
           const msg = item.msg
-          const isOut = msg.sender_id === user.id
+          if (!msg) return null
+          const isOut = Boolean(user?.id && msg.sender_id === user.id)
           return (
             <MessageBubble
-              key={msg.id}
+              key={msg.id || `msg-${i}`}
               msg={msg}
               isOut={isOut}
-              myId={user.id}
+              myId={user?.id}
               conversationId={conv.id}
               onReply={setReplyTo}
               onDelete={deleteMessage}

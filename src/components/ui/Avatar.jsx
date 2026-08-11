@@ -1,12 +1,17 @@
 export default function Avatar({ src, name, size = 10, showOnline = false, isOnline = false, style = {} }) {
-  const initials = name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?'
-  
+  const initials = (name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .map(w => (w && w[0] ? w[0].toUpperCase() : ''))
+    .join('')
+    .slice(0, 2) || '?'
+
   // Generate consistent color from name
   const colors = [
     '#7C5CFC', '#FF5470', '#22D48F', '#FFAB2E',
     '#5B9BFF', '#FF7A5C', '#A855F7', '#14B8A6'
   ]
-  const colorIndex = name ? name.charCodeAt(0) % colors.length : 0
+  const colorIndex = name ? (name.charCodeAt(0) || 0) % colors.length : 0
   const bgColor = src ? undefined : colors[colorIndex]
 
   return (
