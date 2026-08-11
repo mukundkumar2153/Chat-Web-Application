@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from '../components/chat/Sidebar'
 import ChatWindow from '../components/chat/ChatWindow'
 import SettingsPage from '../components/chat/SettingsPage'
@@ -18,6 +18,13 @@ export default function MainLayout() {
   const [showContactInfo, setShowContactInfo] = useState(false)
   const [showStarred, setShowStarred] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+
+  // Auto-close settings when a conversation is selected
+  useEffect(() => {
+    if (activeConversation) {
+      setShowSettings(false)
+    }
+  }, [activeConversation])
 
   return (
     <div className={`app-layout ${activeConversation ? 'has-active-chat' : 'no-active-chat'} ${showSettings ? 'has-settings' : ''}`}>
