@@ -10,7 +10,7 @@ import CallModal from '../components/chat/CallModal'
 import { useChat } from '../context/ChatContext'
 
 export default function MainLayout() {
-  const { activeConversation } = useChat()
+  const { activeConversation, setActiveConversation } = useChat()
   const [activeTab, setActiveTab] = useState('chats')
   const [showSettings, setShowSettings] = useState(false)
   const [showNewChat, setShowNewChat] = useState(false)
@@ -19,11 +19,8 @@ export default function MainLayout() {
   const [showStarred, setShowStarred] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
 
-  // Close contact info when conversation changes
-  const handleSetConversation = () => setShowContactInfo(false)
-
   return (
-    <div className="app-layout">
+    <div className={`app-layout ${activeConversation ? 'has-active-chat' : 'no-active-chat'} ${showSettings ? 'has-settings' : ''}`}>
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
@@ -40,7 +37,7 @@ export default function MainLayout() {
           <SettingsPage onBack={() => { setShowSettings(false); setActiveTab('chats') }} />
         ) : (
           <ChatWindow
-            onBack={() => {}}
+            onBack={() => setActiveConversation(null)}
             onOpenContactInfo={() => {
               if (activeConversation) setShowContactInfo(true)
             }}

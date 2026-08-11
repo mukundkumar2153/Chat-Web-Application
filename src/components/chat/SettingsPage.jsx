@@ -50,6 +50,13 @@ export default function SettingsPage({ onBack }) {
   const [privacyPhoto, setPrivacyPhoto] = useState(profile?.privacy_profile_photo || 'everyone')
   const [allowVoiceRec, setAllowVoiceRec] = useState(profile?.allow_voice_recording ?? false)
   const [allowVideoRec, setAllowVideoRec] = useState(profile?.allow_video_recording ?? false)
+  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('wavechat_theme') || 'default')
+
+  function applyTheme(themeId) {
+    setCurrentTheme(themeId)
+    localStorage.setItem('wavechat_theme', themeId)
+    document.documentElement.setAttribute('data-theme', themeId)
+  }
 
   async function saveField(field, value) {
     setSaving(true)
@@ -295,6 +302,40 @@ export default function SettingsPage({ onBack }) {
                 <SettingRow icon={<UserX size={16} />} label="Blocked Users" sub="Manage blocked contacts" right={<ChevronRight size={16} color="var(--text-muted)" />} />
               </div>
             </>
+          )}
+
+          {/* ── CHATS & THEMES ── */}
+          {section === 'chats' && (
+            <div className="settings-section">
+              <div className="settings-section-title">App Theme</div>
+              <div style={{ padding: '0 16px 12px' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                  Select your preferred color theme
+                </div>
+                <div className="theme-picker-grid">
+                  {[
+                    { id: 'default', name: 'Dark Indigo', base: '#0D0E1A', accent: '#7C5CFC' },
+                    { id: 'emerald', name: 'WhatsApp Dark', base: '#0B141A', accent: '#00A884' },
+                    { id: 'cyberpunk', name: 'Cyber Neon', base: '#07070E', accent: '#00E5FF' },
+                    { id: 'amoled', name: 'Midnight OLED', base: '#000000', accent: '#2979FF' },
+                    { id: 'nord', name: 'Nordic Frost', base: '#2E3440', accent: '#88C0D0' },
+                    { id: 'light', name: 'Clean Light', base: '#F0F2F5', accent: '#0066FF' },
+                  ].map(t => (
+                    <div
+                      key={t.id}
+                      className={`theme-card ${currentTheme === t.id ? 'active' : ''}`}
+                      onClick={() => applyTheme(t.id)}
+                    >
+                      <div className="theme-preview-dots">
+                        <div className="theme-dot" style={{ background: t.base }} />
+                        <div className="theme-dot" style={{ background: t.accent }} />
+                      </div>
+                      <span className="theme-card-name">{t.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── NOTIFICATIONS ── */}

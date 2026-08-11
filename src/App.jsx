@@ -57,6 +57,12 @@ function AppRoutes() {
 export default function App() {
   const [locked, setLocked] = useState(isAppLockEnabled() && !isUnlockedThisSession())
 
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const theme = localStorage.getItem('wavechat_theme') || 'default'
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [])
+
   // Re-check whenever the tab regains focus (covers the "left it open, came back" case)
   useEffect(() => {
     function handleVisibility() {

@@ -363,7 +363,7 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
       )}
 
       <div className="chat-header">
-        <button className="icon-btn" onClick={onBack} style={{ display: 'none' }} id="back-btn">
+        <button className="icon-btn mobile-back-btn" onClick={onBack} title="Back to chats">
           <ArrowLeft size={20} />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => onOpenContactInfo?.(conv)}>
