@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Phone, Video, Search, Star, Bell, BellOff, Shield, Clock, Trash2, Ban, Flag, ChevronRight, Image as ImageIcon, FileText, Film, Edit2, Check } from 'lucide-react'
+import { X, Phone, Video, Search, Star, Bell, BellOff, Shield, Clock, Trash2, Ban, Flag, ChevronRight, Image as ImageIcon, FileText, Film, Edit2, Check, UserPlus, Users } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import EditContactPanel from './EditContactPanel'   // path apne folder ke mutaabik adjust karo
 import { supabase } from '../../lib/supabase'
@@ -25,6 +25,13 @@ export default function ContactInfoPanel({ conversation, onClose, onOpenSearch, 
   const [showBlockConfirm, setShowBlockConfirm] = useState(false)
   const [showReportConfirm, setShowReportConfirm] = useState(false)
   const [starredCount, setStarredCount] = useState(0)
+  // Add member to group
+  const [showAddMember, setShowAddMember] = useState(false)
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberResults, setMemberResults] = useState([])
+  const [memberLoading, setMemberLoading] = useState(false)
+  const [addingMember, setAddingMember] = useState(false)
+  const [addMemberSuccess, setAddMemberSuccess] = useState('')
 
   const otherUser = conversation?.other_user
   const isGroup = conversation?.is_group
@@ -137,6 +144,45 @@ export default function ContactInfoPanel({ conversation, onClose, onOpenSearch, 
   const imageCount = mediaFiles.filter(m => m.message_type === 'image' || m.message_type === 'video').length
   const docCount = mediaFiles.filter(m => m.message_type === 'document').length
 
+  async function searchMembers(q) {
+    setMemberSearch(q)
+    if (!q.trim() || q.length < 2) { setMemberResults([]); return }
+    setMemberLoading(true)
+    // Get current members to exclude them
+    const { data: existing } = await supabase
+      .from('conversation_members')
+      .select('user_id')
+      .eq('conversation_id', conversation.id)
+    const existingIds = (existing || []).map(m => m.user_id)
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, status_text')
+      .ilike('display_name', `%${q}%`)
+      .not('id', 'in', `(${existingIds.join(',')})`)
+      .limit(8)
+    setMemberResults(data || [])
+    setMemberLoading(false)
+  }
+
+  async function addMemberToGroup(targetUser) {
+    if (addingMember) return
+    setAddingMember(true)
+    try {
+      await supabase.from('conversation_members').insert({
+        conversation_id: conversation.id,
+        user_id: targetUser.id,
+      })
+      setAddMemberSuccess(`${targetUser.display_name} added!`)
+      setMemberResults(prev => prev.filter(u => u.id !== targetUser.id))
+      setTimeout(() => setAddMemberSuccess(''), 3000)
+      fetchConversations()
+    } catch (e) {
+      console.error('Add member error:', e)
+    } finally {
+      setAddingMember(false)
+    }
+  }
+
   return (
     <div className="contact-info-panel">
       {/* Header */}
@@ -199,6 +245,76 @@ export default function ContactInfoPanel({ conversation, onClose, onOpenSearch, 
                 <div className="contact-info-field-value">
                   {format(new Date(otherUser.last_seen), 'dd MMM yyyy, HH:mm')}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Add Member (group only) */}
+        {isGroup && (
+          <div className="contact-info-section">
+            <div
+              className="contact-info-row"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setShowAddMember(p => !p)}
+            >
+              <div className="contact-info-row-left">
+                <div className="contact-info-row-icon" style={{ color: 'var(--accent)' }}>
+                  <UserPlus size={18} />
+                </div>
+                <span>Add Member</span>
+              </div>
+              <ChevronRight size={16} color="var(--text-muted)"
+                style={{ transform: showAddMember ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}
+              />
+            </div>
+
+            {showAddMember && (
+              <div style={{ padding: '0 16px 12px' }}>
+                <div className="search-input-wrap" style={{ margin: '8px 0' }}>
+                  <Search size={14} color="var(--text-muted)" />
+                  <input
+                    placeholder="Search users to add..."
+                    value={memberSearch}
+                    onChange={e => searchMembers(e.target.value)}
+                    autoFocus
+                    style={{ fontSize: 13 }}
+                  />
+                </div>
+                {addMemberSuccess && (
+                  <div style={{ fontSize: 12, color: 'var(--online)', padding: '4px 0 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Users size={13} /> {addMemberSuccess}
+                  </div>
+                )}
+                {memberLoading && <div className="spinner" style={{ margin: '8px auto', width: 20, height: 20 }} />}
+                {memberResults.map(u => (
+                  <div
+                    key={u.id}
+                    className="user-result-item"
+                    style={{ opacity: addingMember ? 0.6 : 1, pointerEvents: addingMember ? 'none' : 'auto' }}
+                    onClick={() => addMemberToGroup(u)}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: 'var(--accent-dim)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, color: 'var(--accent-light)',
+                      flexShrink: 0,
+                    }}>
+                      {(u.display_name || '?')[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.display_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {u.status_text || 'WaveChat user'}
+                      </div>
+                    </div>
+                    <UserPlus size={16} color="var(--accent)" />
+                  </div>
+                ))}
+                {!memberLoading && memberSearch.length >= 2 && memberResults.length === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '8px 0' }}>No new users found</div>
+                )}
               </div>
             )}
           </div>

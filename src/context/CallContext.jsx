@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
-import { createPeerConnection, getLocalStream, addTracksToConnection, stopStream, SIGNAL } from '../lib/webrtc'
+import {
+  createPeerConnection, getLocalStream, getDisplayMediaStream,
+  addTracksToConnection, replaceVideoTrack, stopStream, SIGNAL,
+} from '../lib/webrtc'
 
 const CallContext = createContext({})
 
@@ -16,6 +19,7 @@ export function CallProvider({ children }) {
   const [remoteStream, setRemoteStream] = useState(null)
   const [isMuted, setIsMuted] = useState(false)
   const [isVideoOff, setIsVideoOff] = useState(false)
+  const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [callDuration, setCallDuration] = useState(0)
   const [callError, setCallError] = useState(null)
 
@@ -23,9 +27,12 @@ export function CallProvider({ children }) {
   const channelRef = useRef(null)
   const durationTimerRef = useRef(null)
   const localStreamRef = useRef(null)
+  const screenStreamRef = useRef(null)       // holds screen share stream
+  const cameraTrackRef = useRef(null)        // original camera track backup
   const dialingAudioRef = useRef(null)
   const ringAudioRef = useRef(null)
   const pendingOfferRef = useRef(null)
+  const disconnectTimerRef = useRef(null)    // ICE reconnect timeout
 
   // Call tracking refs
   const callStartTimeRef = useRef(null)
@@ -85,6 +92,16 @@ export function CallProvider({ children }) {
   // ─── Cleanup ──────────────────────────────────────
   function clearCallState() {
     stopSounds()
+    clearTimeout(disconnectTimerRef.current)
+    clearInterval(durationTimerRef.current)
+
+    // Stop screen share if active
+    if (screenStreamRef.current) {
+      stopStream(screenStreamRef.current)
+      screenStreamRef.current = null
+    }
+    cameraTrackRef.current = null
+
     stopStream(localStreamRef.current)
     localStreamRef.current = null
     pendingOfferRef.current = null
@@ -92,7 +109,7 @@ export function CallProvider({ children }) {
     callStartTimeRef.current = null
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
     if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null }
-    clearInterval(durationTimerRef.current)
+
     setLocalStream(null)
     setRemoteStream(null)
     setCallStatus(null)
@@ -101,6 +118,7 @@ export function CallProvider({ children }) {
     setConversationId(null)
     setIsMuted(false)
     setIsVideoOff(false)
+    setIsScreenSharing(false)
     setCallDuration(0)
     setCallError(null)
   }
@@ -123,9 +141,11 @@ export function CallProvider({ children }) {
     pcRef.current = pc
     addTracksToConnection(pc, stream)
 
+    // Collect incoming remote tracks into a MediaStream
+    const remoteMediaStream = new MediaStream()
     pc.ontrack = (e) => {
-      console.log('🎵 Remote track received!')
-      setRemoteStream(e.streams[0])
+      e.streams[0]?.getTracks().forEach(t => remoteMediaStream.addTrack(t))
+      setRemoteStream(remoteMediaStream)
     }
 
     pc.onicecandidate = (e) => {
@@ -133,13 +153,28 @@ export function CallProvider({ children }) {
     }
 
     pc.onconnectionstatechange = () => {
-      console.log('📡 Connection state:', pc.connectionState)
-      if (pc.connectionState === 'connected') {
+      const state = pc.connectionState
+      console.log('📡 Connection state:', state)
+
+      if (state === 'connected') {
+        clearTimeout(disconnectTimerRef.current)
         stopSounds()
         setCallStatus('connected')
         startDurationTimer()
       }
-      if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+
+      // On 'disconnected' give 4s to auto-recover before ending
+      if (state === 'disconnected') {
+        clearTimeout(disconnectTimerRef.current)
+        disconnectTimerRef.current = setTimeout(() => {
+          if (pcRef.current?.connectionState !== 'connected') {
+            endCall(false)
+          }
+        }, 4000)
+      }
+
+      if (state === 'failed' || state === 'closed') {
+        clearTimeout(disconnectTimerRef.current)
         endCall(false)
       }
     }
@@ -184,7 +219,6 @@ export function CallProvider({ children }) {
       })
       .on('broadcast', { event: SIGNAL.HANGUP }, async () => {
         console.log('📨 Got HANGUP')
-        // Save as completed if was connected, else missed
         const status = callStartTimeRef.current ? 'completed' : 'missed'
         await saveCallRecord(status)
         endCall(false)
@@ -201,6 +235,11 @@ export function CallProvider({ children }) {
         setCallError('User is busy')
         setTimeout(clearCallState, 2000)
       })
+      .on('broadcast', { event: SIGNAL.SCREEN_SHARE }, (msg) => {
+        if (msg.payload.from === user.id) return
+        // Receiver gets notified that remote is screen sharing
+        console.log('🖥️ Remote screen sharing:', msg.payload.active)
+      })
       .subscribe((status) => console.log('📡 Signal channel:', status))
 
     return channel
@@ -214,9 +253,8 @@ export function CallProvider({ children }) {
     await pc.setLocalDescription(answer)
     broadcast(SIGNAL.ANSWER, { sdp: answer.sdp })
     console.log('✅ Answer sent!')
+    // NOTE: Do NOT set callStatus here — onconnectionstatechange handles it
     stopSounds()
-    setCallStatus('connected')
-    startDurationTimer()
   }
 
   // ─── Public API ────────────────────────────────────
@@ -229,7 +267,6 @@ export function CallProvider({ children }) {
     setConversationId(convId)
     setCallStatus('outgoing')
 
-    // Store call meta for DB save
     callMetaRef.current = {
       callerId: user.id,
       receiverId: targetUser.id,
@@ -244,12 +281,17 @@ export function CallProvider({ children }) {
     if (error) {
       stopSounds()
       await saveCallRecord('failed')
-      setCallError('Microphone access denied')
+      setCallError('Camera/Microphone access denied')
       setTimeout(clearCallState, 3000)
       return
     }
     localStreamRef.current = stream
     setLocalStream(stream)
+
+    // Backup camera track for screen share restore
+    if (type === 'video') {
+      cameraTrackRef.current = stream.getVideoTracks()[0] || null
+    }
 
     // Notify receiver
     const notifyCh = supabase.channel(`user-call:${targetUser.id}`, {
@@ -288,12 +330,18 @@ export function CallProvider({ children }) {
 
     const { stream, error } = await getLocalStream({ video: type === 'video', audio: true })
     if (error) {
-      setCallError('Microphone access denied')
+      setCallError('Camera/Microphone access denied')
       setTimeout(clearCallState, 3000)
       return
     }
     localStreamRef.current = stream
     setLocalStream(stream)
+
+    // Backup camera track
+    if (type === 'video') {
+      cameraTrackRef.current = stream.getVideoTracks()[0] || null
+    }
+
     setCallStatus('connecting')
 
     if (pendingOfferRef.current) {
@@ -332,6 +380,63 @@ export function CallProvider({ children }) {
     setIsVideoOff(p => !p)
   }, [])
 
+  const toggleScreenShare = useCallback(async () => {
+    if (!pcRef.current) return
+
+    // Stop screen share → restore camera
+    if (isScreenSharing) {
+      const cameraTrack = cameraTrackRef.current
+      if (cameraTrack) {
+        replaceVideoTrack(pcRef.current, cameraTrack)
+        // Update local stream to show camera again
+        if (localStreamRef.current) {
+          const screenTrack = localStreamRef.current.getVideoTracks().find(t => t.label.includes('screen') || t.kind === 'video')
+          if (screenTrack && screenTrack !== cameraTrack) {
+            localStreamRef.current.removeTrack(screenTrack)
+            localStreamRef.current.addTrack(cameraTrack)
+          }
+        }
+      }
+      if (screenStreamRef.current) {
+        stopStream(screenStreamRef.current)
+        screenStreamRef.current = null
+      }
+      broadcast(SIGNAL.SCREEN_SHARE, { active: false })
+      setIsScreenSharing(false)
+      return
+    }
+
+    // Start screen share
+    const { stream: screenStream, error } = await getDisplayMediaStream()
+    if (error) {
+      setCallError('Screen share denied or not supported')
+      setTimeout(() => setCallError(null), 3000)
+      return
+    }
+
+    screenStreamRef.current = screenStream
+    const screenTrack = screenStream.getVideoTracks()[0]
+    if (!screenTrack) return
+
+    // Replace video track in peer connection
+    replaceVideoTrack(pcRef.current, screenTrack)
+
+    // Update local stream to show screen share preview
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(t => localStreamRef.current.removeTrack(t))
+      localStreamRef.current.addTrack(screenTrack)
+    }
+    setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
+
+    // Auto-stop when user ends share via browser UI
+    screenTrack.onended = () => {
+      if (isScreenSharing) toggleScreenShare()
+    }
+
+    broadcast(SIGNAL.SCREEN_SHARE, { active: true })
+    setIsScreenSharing(true)
+  }, [isScreenSharing])
+
   // ─── Listen for incoming ring ──────────────────────
   useEffect(() => {
     if (!user) return
@@ -341,11 +446,20 @@ export function CallProvider({ children }) {
       .on('broadcast', { event: SIGNAL.RING }, (msg) => {
         const { from, caller_name, caller_avatar, type, conv_id } = msg.payload
         if (from === user.id) return
-        if (callStatus) return
+        if (callStatus) {
+          // Already in a call — send busy
+          const busyCh = supabase.channel(`call:${conv_id}`, { config: { broadcast: { self: false } } })
+          busyCh.subscribe(s => {
+            if (s === 'SUBSCRIBED') {
+              busyCh.send({ type: 'broadcast', event: SIGNAL.BUSY, payload: { from: user.id } })
+              setTimeout(() => supabase.removeChannel(busyCh), 1000)
+            }
+          })
+          return
+        }
 
         console.log('📲 Incoming call from', caller_name)
 
-        // Store call meta (receiver side)
         callMetaRef.current = {
           callerId: from,
           receiverId: user.id,
@@ -371,9 +485,9 @@ export function CallProvider({ children }) {
     <CallContext.Provider value={{
       callStatus, callType, remoteUser, conversationId,
       localStream, remoteStream,
-      isMuted, isVideoOff, callDuration, callError,
+      isMuted, isVideoOff, isScreenSharing, callDuration, callError,
       startCall, acceptCall, rejectCall, endCall,
-      toggleMute, toggleVideo,
+      toggleMute, toggleVideo, toggleScreenShare,
     }}>
       {children}
     </CallContext.Provider>
