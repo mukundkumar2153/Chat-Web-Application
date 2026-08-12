@@ -184,14 +184,39 @@ export default function ContactInfoPanel({ conversation, onClose, onOpenSearch, 
   }
 
   return (
-    <div className="contact-info-panel">
+    <div className="contact-info-panel" style={{ position: 'relative', overflow: 'hidden' }}>
+
+      {/* ── Edit Contact Overlay (slides in over panel) ── */}
+      {showEditContact && otherUser && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 20,
+          background: 'var(--bg-surface)',
+          animation: 'slideInRight 0.22s cubic-bezier(0.4,0,0.2,1)',
+        }}>
+          <style>{`
+            @keyframes slideInRight {
+              from { transform: translateX(100%); opacity: 0; }
+              to   { transform: translateX(0);    opacity: 1; }
+            }
+          `}</style>
+          <EditContactPanel
+            otherUser={otherUser}
+            onClose={() => setShowEditContact(false)}
+            onDeleted={() => { setShowEditContact(false); onClose() }}
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="contact-info-header">
         <button className="icon-btn" onClick={onClose}><X size={20} /></button>
         <span style={{ fontWeight: 600, fontSize: '16px' }}>Contact info</span>
-        <button className="icon-btn" title="Edit">
-          <Edit2 size={18} />
-        </button>
+        {!isGroup && otherUser && (
+          <button className="icon-btn" title="Edit contact" onClick={() => setShowEditContact(true)}>
+            <Edit2 size={18} />
+          </button>
+        )}
+        {isGroup && <div style={{ width: 36 }} />}
       </div>
 
       <div className="contact-info-body">
