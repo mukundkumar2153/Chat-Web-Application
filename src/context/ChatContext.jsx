@@ -87,6 +87,19 @@ export function ChatProvider({ children }) {
               .select('id, display_name, avatar_url, status_text, last_seen, is_online, public_key')
               .eq('id', otherMemberRow.user_id)
               .maybeSingle()
+
+            if (prof) {
+              const { data: nick } = await supabase
+                .from('contact_nicknames')
+                .select('first_name, last_name')
+                .eq('owner_id', user.id)
+                .eq('contact_id', prof.id)
+                .maybeSingle()
+
+              if (nick && (nick.first_name || nick.last_name)) {
+                prof.display_name = `${nick.first_name || ''} ${nick.last_name || ''}`.trim()
+              }
+            }
             conv.other_user = prof || null
           } else {
             conv.other_user = null

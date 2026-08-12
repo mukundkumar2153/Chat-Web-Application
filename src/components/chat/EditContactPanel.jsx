@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ArrowLeft, Trash2, Phone, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase' // apne path ke mutabik adjust karo
 
-export default function EditContactPanel({ otherUser, onClose, onDeleted }) {
+export default function EditContactPanel({ otherUser, onClose, onDeleted, onSaved }) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -47,60 +47,54 @@ export default function EditContactPanel({ otherUser, onClose, onDeleted }) {
     setLoading(false)
   }
 
-  // Auto-save with debounce (600ms)
-  function handleChange(field, value) {
-    if (field === 'first') setFirstName(value)
-    else setLastName(value)
-
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      saveNickname(
-        field === 'first' ? value : firstName,
-        field === 'last' ? value : lastName
-      )
-    }, 600)
-  }
-
-  async function saveNickname(fn, ln) {
+  // Handle save button click
+  async function handleSave() {
     if (!currentUser?.id || !otherUser?.id) return
     setSaving(true)
-    await supabase
-      .from('contact_nicknames')
-      .upsert(
-        {
-          owner_id: currentUser.id,
-          contact_id: otherUser.id,
-          first_name: fn.trim(),
-          last_name: ln.trim(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'owner_id,contact_id' }
-      )
+    const fn = firstName.trim()
+    const ln = lastName.trim()
+
+    if (fn || ln) {
+      await supabase
+        .from('contact_nicknames')
+        .upsert(
+          {
+            owner_id: currentUser.id,
+            contact_id: otherUser.id,
+            first_name: fn,
+            last_name: ln,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'owner_id,contact_id' }
+        )
+    } else {
+      // If empty, remove nickname entry
+      await supabase
+        .from('contact_nicknames')
+        .delete()
+        .eq('owner_id', currentUser.id)
+        .eq('contact_id', otherUser.id)
+    }
+
     setSaving(false)
+    if (onSaved) onSaved()
+    onClose()
   }
 
   async function handleDeleteContact() {
     if (!currentUser?.id || !otherUser?.id) return
     setDeleting(true)
 
-    // Nickname bhi delete karo
     await supabase
       .from('contact_nicknames')
       .delete()
       .eq('owner_id', currentUser.id)
       .eq('contact_id', otherUser.id)
 
-    // ⚠️ Apni contacts table ka naam/column yahan update karo
-    // Example: agar table "contacts" hai owner_id + contact_id ke saath:
-    await supabase
-      .from('contacts')
-      .delete()
-      .eq('owner_id', currentUser.id)
-      .eq('contact_id', otherUser.id)
-
     setDeleting(false)
     setShowDeleteConfirm(false)
-    onDeleted() // parent ko signal do - panel band karo
+    if (onSaved) onSaved()
+    onDeleted()
   }
 
   const displayPhone = otherUser?.phone_number || 'No number'
@@ -131,36 +125,62 @@ export default function EditContactPanel({ otherUser, onClose, onDeleted }) {
         ) : (
           <div className="ecp-avatar ecp-avatar-fallback">{initials}</div>
         )}
-        {saving && <span className="ecp-saving-badge">Saving…</span>}
       </div>
 
       {/* ── Name Fields ── */}
       {loading ? (
         <div className="ecp-loading">Loading…</div>
       ) : (
-        <div className="ecp-fields">
-          <div className="ecp-field-group">
-            <label className="ecp-label">First name</label>
-            <input
-              className="ecp-input"
-              type="text"
-              placeholder="First name"
-              value={firstName}
-              onChange={(e) => handleChange('first', e.target.value)}
-            />
+        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="ecp-fields">
+            <div className="ecp-field-group">
+              <label className="ecp-label">First name</label>
+              <input
+                className="ecp-input"
+                type="text"
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+            </div>
+            <div className="ecp-field-group">
+              <label className="ecp-label">Last name</label>
+              <input
+                className="ecp-input"
+                type="text"
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="ecp-field-group">
-            <label className="ecp-label">Last name</label>
-            <input
-              className="ecp-input"
-              type="text"
-              placeholder="Last name"
-              value={lastName}
-              onChange={(e) => handleChange('last', e.target.value)}
-            />
-          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'var(--accent, #00a884)',
+              color: '#fff',
+              fontSize: '15px',
+              fontWeight: '600',
+              cursor: saving ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'opacity 0.2s',
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            {saving ? 'Saving...' : 'Save Contact'}
+          </button>
         </div>
       )}
+
 
       {/* ── Phone Info (read-only) ── */}
       <div className="ecp-phone-section">

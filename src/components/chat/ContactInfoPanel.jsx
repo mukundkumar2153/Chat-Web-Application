@@ -202,7 +202,15 @@ export default function ContactInfoPanel({ conversation, onClose, onOpenSearch, 
           <EditContactPanel
             otherUser={otherUser}
             onClose={() => setShowEditContact(false)}
-            onDeleted={() => { setShowEditContact(false); onClose() }}
+            onSaved={() => {
+              fetchNickname()
+              fetchConversations()
+            }}
+            onDeleted={() => {
+              setShowEditContact(false)
+              onClose()
+              fetchConversations()
+            }}
           />
         </div>
       )}
