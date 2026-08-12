@@ -48,8 +48,8 @@ export default function Sidebar({ activeTab, setActiveTab, onNewChat, onNewGroup
       if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) setContextMenu(null)
       if (headerMenuRef.current && !headerMenuRef.current.contains(e.target)) setHeaderMenu(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
   }, [])
 
   useEffect(() => {

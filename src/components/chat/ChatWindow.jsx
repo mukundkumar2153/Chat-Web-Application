@@ -16,7 +16,11 @@ import { format, isToday, isYesterday, isSameDay } from 'date-fns'
 
 function formatMsgTime(dateStr) {
   if (!dateStr) return ''
-  return format(new Date(dateStr), 'HH:mm')
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return format(d, 'HH:mm')
+  } catch { return '' }
 }
 
 function DateDivider({ date }) {
@@ -64,12 +68,24 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, m
 
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
+  // Touch long-press to show actions
+  const longPressTimer = useRef(null)
+  function handleTouchStart() {
+    longPressTimer.current = setTimeout(() => setShowActions(true), 400)
+  }
+  function handleTouchEnd() {
+    clearTimeout(longPressTimer.current)
+  }
+
   return (
     <div
       id={`msg-${msg.id}`}
       className={`message-row ${isOut ? 'outgoing' : 'incoming'} ${highlight ? 'highlighted' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowEmojiQuick(false) }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
     >
       {!isOut && (
         <Avatar src={msg.profiles?.avatar_url} name={msg.profiles?.display_name} size={10} />
@@ -196,6 +212,18 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
 
   useEffect(() => {
     return () => { if (recordStreamRef.current) recordStreamRef.current.getTracks().forEach(t => t.stop()) }
+  }, [])
+
+  // Close emoji / attach menu on tap outside (works on mobile too)
+  useEffect(() => {
+    function handleOutside(e) {
+      const emojiWrap = document.querySelector('.emoji-picker-wrap')
+      const attachMenuEl = document.querySelector('.attach-menu')
+      if (emojiWrap && !emojiWrap.contains(e.target)) setShowEmoji(false)
+      if (attachMenuEl && !attachMenuEl.contains(e.target)) setShowAttachMenu(false)
+    }
+    document.addEventListener('pointerdown', handleOutside)
+    return () => document.removeEventListener('pointerdown', handleOutside)
   }, [])
 
   function handleTyping(e) {
