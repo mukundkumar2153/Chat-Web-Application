@@ -4,7 +4,7 @@ const GOOGLE_CLIENT_ID_KEY = 'wavechat_gdrive_client_id'
 const GOOGLE_TOKEN_KEY = 'wavechat_gdrive_token'
 
 export function getStoredGoogleClientId() {
-  return localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || ''
+  return localStorage.getItem(GOOGLE_CLIENT_ID_KEY) || import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 }
 
 export function saveGoogleClientId(clientId) {
