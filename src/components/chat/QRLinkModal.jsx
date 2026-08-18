@@ -31,11 +31,15 @@ export default function QRLinkModal({ user, onClose }) {
     setStatus('waiting')
 
     if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, session.qrData, {
-        width: 230,
-        margin: 2,
-        color: { dark: '#000000', light: '#FFFFFF' },
-      }).catch(err => console.error('QR rendering error:', err))
+      QRCode.toCanvas(
+        canvasRef.current,
+        typeof session.qrData === 'string' ? session.qrData : JSON.stringify(session.qrData),
+        {
+          width: 230,
+          margin: 2,
+          color: { dark: '#000000', light: '#FFFFFF' },
+        }
+      ).catch(err => console.error('QR rendering error:', err))
     }
   }
 
