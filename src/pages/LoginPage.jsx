@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Waves, Mail, Lock, Eye, EyeOff, RefreshCw, AlertCircle, UserPlus, LogIn, KeyRound, CheckCircle } from 'lucide-react'
+import { Waves, Mail, Lock, Eye, EyeOff, RefreshCw, AlertCircle, UserPlus, LogIn, KeyRound, CheckCircle, QrCode } from 'lucide-react'
+import QRScanModal from '../components/chat/QRScanModal'
 
 // ── OTP Input — defined OUTSIDE component to prevent remount ──
 function OtpInputs({ otp, setOtp, otpRefs, onComplete }) {
@@ -91,6 +92,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
+  const [showQRScan, setShowQRScan] = useState(false)
   const otpRefs = useRef([])
 
   function startResendTimer() {
@@ -256,6 +258,19 @@ export default function LoginPage() {
             <button type="submit" className="btn-primary" disabled={loading || !email.trim() || !password}
               style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {loading ? <div className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> : <><LogIn size={16} /> Sign In</>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowQRScan(true)}
+              style={{
+                marginTop: 10, width: '100%', padding: '10px', borderRadius: 10,
+                border: '1px solid var(--border)', background: 'var(--bg-elevated)',
+                color: 'var(--text-primary)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+              }}
+            >
+              <QrCode size={16} color="var(--accent)" />
+              Link Device via QR Code
             </button>
             <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text-muted)' }}>
               Don't have an account?{' '}
@@ -425,6 +440,7 @@ export default function LoginPage() {
           By continuing, you agree to WaveChat's Terms of Service and Privacy Policy.
         </div>
       </div>
+      {showQRScan && <QRScanModal onClose={() => setShowQRScan(false)} onSuccess={() => window.location.reload()} />}
     </div>
   )
 }

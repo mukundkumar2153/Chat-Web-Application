@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
   MoreVertical, Phone, Video, Search, Smile, Paperclip, Mic,
-  Send, X, Reply, Trash2, Forward, ArrowLeft, CheckCheck,
-  Image as ImageIcon, FileText, Film, Lock, Square, Trash, Star, ChevronUp, ChevronDown,
+  Send, X, Reply, Trash2, Forward, ArrowLeft, CheckCheck, Check,
+  Image as ImageIcon, FileText, Film, Lock, Square, Trash, Star, ChevronUp, ChevronDown, Key, Camera, RefreshCw,
 } from 'lucide-react'
+import PassphraseRecoveryModal from './PassphraseRecoveryModal'
+import QRScanModal from './QRScanModal'
 import EmojiPicker from 'emoji-picker-react'
 import { useAuth } from '../../context/AuthContext'
 import { useChat } from '../../context/ChatContext'
@@ -36,6 +38,96 @@ function EncryptionBanner() {
     <div className="encryption-banner">
       <Lock size={13} />
       Messages and files are end-to-end encrypted. Only people in this chat can read or download them.
+    </div>
+  )
+}
+
+function EncryptionKeyMissingBanner({ userId, onReset }) {
+  const [showPassphraseModal, setShowPassphraseModal] = useState(false)
+  const [showQRScanModal, setShowQRScanModal] = useState(false)
+  const [resetting, setResetting] = useState(false)
+
+  async function handleReset() {
+    if (!window.confirm('Resetting encryption key will allow sending new messages, but old messages will stay unreadable. Continue?')) return
+    setResetting(true)
+    await onReset()
+    setResetting(false)
+    window.location.reload()
+  }
+
+  return (
+    <div style={{
+      margin: '12px 16px',
+      padding: '16px',
+      borderRadius: '12px',
+      background: 'rgba(239, 68, 68, 0.12)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <span style={{ fontSize: 20 }}>🔑</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#ef4444', marginBottom: 4 }}>
+            Encryption Key Missing on this Device
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Your E2E private key is missing on this browser. Choose an option below to restore your access:
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+        <button
+          onClick={() => setShowPassphraseModal(true)}
+          style={{
+            padding: '8px 14px', borderRadius: 8, border: 'none',
+            background: 'var(--accent)', color: 'white', fontWeight: 600,
+            fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+          }}
+        >
+          <Key size={14} /> Restore via Passphrase
+        </button>
+
+        <button
+          onClick={() => setShowQRScanModal(true)}
+          style={{
+            padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)',
+            background: 'var(--bg-elevated)', color: 'var(--text-primary)', fontWeight: 600,
+            fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+          }}
+        >
+          <Camera size={14} /> Scan QR Code
+        </button>
+
+        <button
+          onClick={handleReset}
+          disabled={resetting}
+          style={{
+            padding: '8px 14px', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.4)',
+            background: 'transparent', color: '#ef4444', fontWeight: 600,
+            fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+          }}
+        >
+          <RefreshCw size={14} /> {resetting ? 'Resetting...' : 'Reset Key'}
+        </button>
+      </div>
+
+      {showPassphraseModal && (
+        <PassphraseRecoveryModal
+          userId={userId}
+          onClose={() => setShowPassphraseModal(false)}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
+
+      {showQRScanModal && (
+        <QRScanModal
+          onClose={() => setShowQRScanModal(false)}
+          onSuccess={() => window.location.reload()}
+        />
+      )}
     </div>
   )
 }
@@ -449,6 +541,9 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
 
       <div className="messages-area">
         <EncryptionBanner />
+        {encryptionStatus === 'missing-local-key' && (
+          <EncryptionKeyMissingBanner userId={user?.id} onReset={resetEncryptionKeys} />
+        )}
         {grouped.map((item, i) => {
           if (item.type === 'date') return <DateDivider key={`date-${i}`} date={item.date} />
           const msg = item.msg

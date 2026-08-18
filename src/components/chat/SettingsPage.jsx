@@ -1,15 +1,20 @@
-import { useState, useRef } from 'react'
 import {
   ArrowLeft, Camera, Bell, Lock, Shield, UserX, LogOut, Trash2,
   ChevronRight, Eye, ShieldCheck, AlertTriangle, KeyRound,
   Monitor, MessageSquare, Video, Keyboard, HelpCircle, Key,
-  Mic, VideoIcon
+  Mic, VideoIcon, Smartphone, QrCode, Cloud, Upload, Download, Plus, CheckCircle, RefreshCw
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useChat } from '../../context/ChatContext'
 import { supabase } from '../../lib/supabase'
 import { fingerprint } from '../../lib/crypto'
 import { isAppLockEnabled } from '../../lib/appLock'
 import Avatar from '../ui/Avatar'
+import PassphraseSetupModal from './PassphraseSetupModal'
+import QRLinkModal from './QRLinkModal'
+import { fetchKeyBackupFromSupabase } from '../../lib/keyBackup'
+import { fetchLinkedDevices, revokeLinkedDevice } from '../../lib/qrLinking'
+import { authenticateGoogleDrive, getGoogleAccessToken, uploadChatBackupToDrive, downloadChatBackupFromDrive, getStoredGoogleClientId, saveGoogleClientId } from '../../lib/googleDrive'
 
 function Toggle({ on, onToggle }) {
   return (
@@ -36,6 +41,7 @@ function SettingRow({ icon, label, sub, right, onClick, danger }) {
 
 export default function SettingsPage({ onBack }) {
   const { user, profile, updateProfile, signOut, encryptionStatus, resetEncryptionKeys } = useAuth()
+  const { messages, conversations } = useChat()
   const [section, setSection] = useState(null)
   const [resetting, setResetting] = useState(false)
   const [editName, setEditName] = useState(false)
@@ -44,6 +50,101 @@ export default function SettingsPage({ onBack }) {
   const [statusText, setStatusText] = useState(profile?.status_text || '')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef()
+
+  const [showPassphraseModal, setShowPassphraseModal] = useState(false)
+  const [showQRLinkModal, setShowQRLinkModal] = useState(false)
+  const [hasKeyBackup, setHasKeyBackup] = useState(false)
+  const [linkedDevices, setLinkedDevices] = useState([])
+  const [loadingDevices, setLoadingDevices] = useState(false)
+
+  // Google Drive state
+  const [gdriveClientId, setGdriveClientId] = useState(() => getStoredGoogleClientId())
+  const [gdriveToken, setGdriveToken] = useState(() => getGoogleAccessToken())
+  const [gdriveStatus, setGdriveStatus] = useState('')
+  const [gdriveLoading, setGdriveLoading] = useState(false)
+  const [passphrasePrompt, setPassphrasePrompt] = useState('')
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchKeyBackupFromSupabase(user.id).then(b => setHasKeyBackup(!!b)).catch(() => {})
+      loadDevices()
+    }
+  }, [user])
+
+  async function loadDevices() {
+    if (!user?.id) return
+    setLoadingDevices(true)
+    try {
+      const devs = await fetchLinkedDevices(user.id)
+      setLinkedDevices(devs)
+    } catch (e) { console.error(e) }
+    finally { setLoadingDevices(false) }
+  }
+
+  async function handleUnlinkDevice(deviceId) {
+    if (!window.confirm('Unlink this device from your WaveChat account?')) return
+    await revokeLinkedDevice(user.id, deviceId)
+    loadDevices()
+  }
+
+  async function handleGoogleDriveConnect() {
+    if (!gdriveClientId.trim()) {
+      alert('Please enter a valid Google OAuth Client ID first')
+      return
+    }
+    saveGoogleClientId(gdriveClientId.trim())
+    authenticateGoogleDrive({
+      clientId: gdriveClientId.trim(),
+      onSuccess: (authData) => {
+        setGdriveToken(authData.token)
+        setGdriveStatus('Connected to Google Drive!')
+      },
+      onError: (err) => {
+        setGdriveStatus('Google Drive error: ' + err.message)
+      }
+    })
+  }
+
+  async function handleBackupToDrive() {
+    if (!passphrasePrompt.trim()) {
+      alert('Please enter your 12-word recovery passphrase to encrypt the backup before uploading')
+      return
+    }
+    setGdriveLoading(true)
+    setGdriveStatus('Preparing backup...')
+    try {
+      await uploadChatBackupToDrive({
+        messagesData: { conversations, messagesCount: messages.length },
+        passphrase: passphrasePrompt.trim(),
+        onProgress: setGdriveStatus,
+      })
+    } catch (err) {
+      setGdriveStatus('Backup failed: ' + err.message)
+    } finally {
+      setGdriveLoading(false)
+    }
+  }
+
+  async function handleRestoreFromDrive() {
+    if (!passphrasePrompt.trim()) {
+      alert('Please enter your 12-word recovery passphrase to decrypt the cloud backup')
+      return
+    }
+    setGdriveLoading(true)
+    setGdriveStatus('Fetching backup from Google Drive...')
+    try {
+      const data = await downloadChatBackupFromDrive({
+        passphrase: passphrasePrompt.trim(),
+        onProgress: setGdriveStatus,
+      })
+      alert(`Restored cloud backup from ${data.exported_at}! Reloading...`)
+      window.location.reload()
+    } catch (err) {
+      setGdriveStatus('Restore failed: ' + err.message)
+    } finally {
+      setGdriveLoading(false)
+    }
+  }
 
   const [notifs, setNotifs] = useState(profile?.notifications_enabled ?? true)
   const [privacyLastSeen, setPrivacyLastSeen] = useState(profile?.privacy_last_seen || 'everyone')
@@ -78,9 +179,10 @@ export default function SettingsPage({ onBack }) {
 
   const categories = [
     { id: 'general', icon: <Monitor size={20} />, label: 'General', sub: 'Startup and close' },
-    { id: 'account', icon: <Key size={20} />, label: 'Account', sub: 'Security, encryption, account info' },
+    { id: 'account', icon: <Key size={20} />, label: 'Account', sub: 'Security, encryption, passphrase backup' },
+    { id: 'devices', icon: <Smartphone size={20} />, label: 'Linked Devices', sub: 'Multi-device pairing & QR' },
     { id: 'privacy', icon: <Shield size={20} />, label: 'Privacy', sub: 'Blocked contacts, recording, app lock' },
-    { id: 'chats', icon: <MessageSquare size={20} />, label: 'Chats', sub: 'Theme, chat settings' },
+    { id: 'chats', icon: <MessageSquare size={20} />, label: 'Chats', sub: 'Theme, Google Drive backup' },
     { id: 'voice', icon: <Video size={20} />, label: 'Video & voice', sub: 'Camera, microphone & speakers' },
     { id: 'notifications', icon: <Bell size={20} />, label: 'Notifications', sub: 'Message notifications' },
     { id: 'keyboard', icon: <Keyboard size={20} />, label: 'Keyboard shortcuts', sub: 'Quick actions' },
@@ -200,6 +302,19 @@ export default function SettingsPage({ onBack }) {
                     {resetting && <div className="spinner" style={{ width: 16, height: 16 }} />}
                   </div>
                 )}
+                {/* Encrypted Key Backup */}
+                <div className="settings-row" onClick={() => setShowPassphraseModal(true)} style={{ cursor: 'pointer' }}>
+                  <div className="settings-row-left">
+                    <div className="settings-row-icon" style={{ color: 'var(--accent)' }}><Key size={16} /></div>
+                    <div>
+                      <div className="settings-row-label">12-Word Recovery Passphrase</div>
+                      <div className="settings-row-sub">
+                        {hasKeyBackup ? '✓ Encrypted backup saved to cloud' : 'Create 12-word recovery backup'}
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color="var(--text-muted)" />
+                </div>
               </div>
 
               {/* Danger zone */}
@@ -207,6 +322,57 @@ export default function SettingsPage({ onBack }) {
                 <div className="settings-section-title">Account</div>
                 <SettingRow icon={<LogOut size={16} />} label="Log Out" danger onClick={signOut} />
                 <SettingRow icon={<Trash2 size={16} />} label="Delete Account" sub="Permanently delete your account and data" danger />
+              </div>
+            </>
+          )}
+
+          {/* ── LINKED DEVICES ── */}
+          {section === 'devices' && (
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">Device Pairing</div>
+                <div className="settings-row" onClick={() => setShowQRLinkModal(true)} style={{ cursor: 'pointer' }}>
+                  <div className="settings-row-left">
+                    <div className="settings-row-icon" style={{ color: 'var(--accent)' }}><QrCode size={18} /></div>
+                    <div>
+                      <div className="settings-row-label" style={{ fontWeight: 600 }}>Link a Device</div>
+                      <div className="settings-row-sub">Scan QR code to pair another phone or browser</div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color="var(--text-muted)" />
+                </div>
+              </div>
+
+              <div className="settings-section">
+                <div className="settings-section-title">Linked Devices</div>
+                {loadingDevices ? (
+                  <div style={{ padding: 16, fontSize: 13, color: 'var(--text-muted)' }}>Loading devices...</div>
+                ) : linkedDevices.length === 0 ? (
+                  <div style={{ padding: 16, fontSize: 13, color: 'var(--text-muted)' }}>
+                    No secondary devices linked yet.
+                  </div>
+                ) : (
+                  linkedDevices.map(dev => (
+                    <div key={dev.id} className="settings-row" style={{ cursor: 'default' }}>
+                      <div className="settings-row-left">
+                        <div className="settings-row-icon"><Smartphone size={16} /></div>
+                        <div>
+                          <div className="settings-row-label">{dev.device_name}</div>
+                          <div className="settings-row-sub">Linked: {new Date(dev.linked_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUnlinkDevice(dev.device_id)}
+                        style={{
+                          background: 'none', border: 'none', color: 'var(--danger)',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Unlink
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}
@@ -438,20 +604,83 @@ export default function SettingsPage({ onBack }) {
 
           {/* ── CHATS ── */}
           {section === 'chats' && (
-            <div className="settings-section">
-              <div className="settings-section-title">Chat Settings</div>
-              <div className="settings-row" style={{ cursor: 'default' }}>
-                <div className="settings-row-left">
-                  <div className="settings-row-icon"><MessageSquare size={16} /></div>
-                  <div>
-                    <div className="settings-row-label">Chat backup</div>
-                    <div className="settings-row-sub">Messages are stored securely</div>
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">Google Drive Chat Backup</div>
+                <div style={{ padding: '0 16px 16px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                    Back up your encrypted chat history to your personal Google Drive hidden AppData folder.
                   </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Google OAuth Client ID</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 123456789-abc.apps.googleusercontent.com"
+                      value={gdriveClientId}
+                      onChange={e => setGdriveClientId(e.target.value)}
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <button
+                      onClick={handleGoogleDriveConnect}
+                      className="secondary-btn"
+                      style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <Cloud size={14} color="var(--accent)" />
+                      {gdriveToken ? 'Re-connect Google Drive' : 'Connect Google Drive'}
+                    </button>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>
+                      12-Word Passphrase (for encrypting/decrypting Drive backup)
+                    </label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="Enter 12-word passphrase"
+                      value={passphrasePrompt}
+                      onChange={e => setPassphrasePrompt(e.target.value)}
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={handleBackupToDrive}
+                      disabled={gdriveLoading || !gdriveToken}
+                      className="primary-btn"
+                      style={{ fontSize: 12, padding: '8px 14px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Upload size={14} />
+                      Back Up Now
+                    </button>
+
+                    <button
+                      onClick={handleRestoreFromDrive}
+                      disabled={gdriveLoading || !gdriveToken}
+                      className="secondary-btn"
+                      style={{ fontSize: 12, padding: '8px 14px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Download size={14} />
+                      Restore Backup
+                    </button>
+                  </div>
+
+                  {gdriveStatus && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: 'var(--accent)', background: 'var(--bg-elevated)', padding: '8px 10px', borderRadius: 8 }}>
+                      {gdriveStatus}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </>
           )}
-
+          {/* Remaining content omitted for brevity */}
         </div>
       </div>
     )
@@ -519,6 +748,21 @@ export default function SettingsPage({ onBack }) {
           WaveChat v2.0.0 · Made with ❤️
         </div>
       </div>
+
+      {showPassphraseModal && (
+        <PassphraseSetupModal
+          userId={user?.id}
+          onClose={() => setShowPassphraseModal(false)}
+          onComplete={() => setHasKeyBackup(true)}
+        />
+      )}
+
+      {showQRLinkModal && (
+        <QRLinkModal
+          user={user}
+          onClose={() => setShowQRLinkModal(false)}
+        />
+      )}
     </div>
   )
 }
