@@ -153,11 +153,20 @@ export default function SettingsPage({ onBack }) {
   const [allowVoiceRec, setAllowVoiceRec] = useState(profile?.allow_voice_recording ?? false)
   const [allowVideoRec, setAllowVideoRec] = useState(profile?.allow_video_recording ?? false)
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('wavechat_theme') || 'default')
+  const [readReceipts, setReadReceipts] = useState(() => localStorage.getItem('wavechat_read_receipts') !== 'false')
+  const [tickColor, setTickColor] = useState(() => localStorage.getItem('wavechat_tick_color') || '#00a884')
+  const [currentWallpaper, setCurrentWallpaper] = useState(() => localStorage.getItem('wavechat_wallpaper') || 'none')
 
   function applyTheme(themeId) {
     setCurrentTheme(themeId)
     localStorage.setItem('wavechat_theme', themeId)
     document.documentElement.setAttribute('data-theme', themeId)
+  }
+
+  function applyWallpaper(wpId) {
+    setCurrentWallpaper(wpId)
+    localStorage.setItem('wavechat_wallpaper', wpId)
+    document.documentElement.setAttribute('data-wallpaper', wpId)
   }
 
   async function saveField(field, value) {
@@ -587,25 +596,133 @@ export default function SettingsPage({ onBack }) {
             </div>
           )}
 
-          {/* ── GENERAL ── */}
+          {/* ── GENERAL & THEMES ── */}
           {section === 'general' && (
-            <div className="settings-section">
-              <div className="settings-section-title">General</div>
-              <div className="settings-row" style={{ cursor: 'default' }}>
-                <div className="settings-row-left">
-                  <div className="settings-row-icon"><Monitor size={16} /></div>
-                  <div>
-                    <div className="settings-row-label">Theme</div>
-                    <div className="settings-row-sub">Dark mode (default)</div>
+            <>
+              <div className="settings-section">
+                <div className="settings-section-title">App Theme</div>
+                <div style={{ padding: '0 16px 16px' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                    Select your preferred color theme
+                  </div>
+                  <div className="theme-picker-grid">
+                    {[
+                      { id: 'default', name: 'Dark Indigo', base: '#0D0E1A', accent: '#7C5CFC' },
+                      { id: 'emerald', name: 'WhatsApp Dark', base: '#0B141A', accent: '#00A884' },
+                      { id: 'cyberpunk', name: 'Cyber Neon', base: '#07070E', accent: '#00E5FF' },
+                      { id: 'amoled', name: 'Midnight OLED', base: '#000000', accent: '#2979FF' },
+                      { id: 'nord', name: 'Nordic Frost', base: '#2E3440', accent: '#88C0D0' },
+                      { id: 'light', name: 'Clean Light', base: '#F0F2F5', accent: '#0066FF' },
+                      { id: 'rose', name: 'Rose Blush', base: '#1A0D14', accent: '#E85D75' },
+                      { id: 'forest', name: 'Forest Green', base: '#0D1A14', accent: '#2E7D32' },
+                      { id: 'ocean', name: 'Ocean Blue', base: '#0D161A', accent: '#0288D1' },
+                      { id: 'sunset', name: 'Sunset Orange', base: '#1A120D', accent: '#F57C00' },
+                      { id: 'grape', name: 'Grape Purple', base: '#150D1A', accent: '#8E24AA' },
+                      { id: 'slate', name: 'Slate Grey', base: '#1E242B', accent: '#607D8B' },
+                    ].map(t => (
+                      <div
+                        key={t.id}
+                        className={`theme-card ${currentTheme === t.id ? 'active' : ''}`}
+                        onClick={() => applyTheme(t.id)}
+                      >
+                        <div className="theme-preview-dots">
+                          <div className="theme-dot" style={{ background: t.base }} />
+                          <div className="theme-dot" style={{ background: t.accent }} />
+                        </div>
+                        <span className="theme-card-name">{t.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </div>
+
+              <div className="settings-section">
+                <div className="settings-section-title">Chat Wallpaper</div>
+                <div style={{ padding: '0 16px 16px' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                    Background pattern in chat windows
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    {[
+                      { id: 'none', label: 'None' },
+                      { id: 'dots', label: 'Subtle Dots' },
+                      { id: 'grid', label: 'Grid Lines' },
+                      { id: 'waves', label: 'Wave Pattern' },
+                      { id: 'gradient', label: 'Soft Gradient' },
+                      { id: 'topaz', label: 'Dark Topaz' },
+                    ].map(wp => (
+                      <button
+                        key={wp.id}
+                        onClick={() => applyWallpaper(wp.id)}
+                        style={{
+                          padding: '10px 8px', borderRadius: 8,
+                          border: currentWallpaper === wp.id ? '2px solid var(--accent)' : '1px solid var(--border)',
+                          background: currentWallpaper === wp.id ? 'var(--accent-dim)' : 'var(--bg-elevated)',
+                          color: currentWallpaper === wp.id ? 'var(--accent)' : 'var(--text-primary)',
+                          fontWeight: 600, fontSize: 12, cursor: 'pointer'
+                        }}
+                      >
+                        {wp.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>
           )}
 
-          {/* ── CHATS ── */}
+          {/* ── CHATS & READ RECEIPTS ── */}
           {section === 'chats' && (
             <>
+              <div className="settings-section">
+                <div className="settings-section-title">Read Receipts & Ticks</div>
+                <div className="settings-row" onClick={() => {
+                  const val = !readReceipts
+                  setReadReceipts(val)
+                  localStorage.setItem('wavechat_read_receipts', val ? 'true' : 'false')
+                }}>
+                  <div className="settings-row-left">
+                    <div className="settings-row-icon" style={{ color: tickColor }}>✓✓</div>
+                    <div>
+                      <div className="settings-row-label">Read Receipts</div>
+                      <div className="settings-row-sub">Show when you've read messages (double ticks)</div>
+                    </div>
+                  </div>
+                  <Toggle on={readReceipts} onToggle={() => {
+                    const val = !readReceipts
+                    setReadReceipts(val)
+                    localStorage.setItem('wavechat_read_receipts', val ? 'true' : 'false')
+                  }} />
+                </div>
+
+                {readReceipts && (
+                  <div className="settings-row" style={{ cursor: 'default' }}>
+                    <div className="settings-row-left">
+                      <div className="settings-row-icon" style={{ color: tickColor }}>🎨</div>
+                      <div>
+                        <div className="settings-row-label">Read Tick Color</div>
+                        <div className="settings-row-sub">Select double tick color when read</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {['#00a884', '#7C5CFC', '#2979FF', '#e85d75', '#ff6f00', '#4caf50', '#00E5FF', '#FFD700'].map(c => (
+                        <div
+                          key={c}
+                          onClick={() => { setTickColor(c); localStorage.setItem('wavechat_tick_color', c) }}
+                          style={{
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: c,
+                            cursor: 'pointer',
+                            border: tickColor === c ? '2px solid white' : '2px solid transparent',
+                            boxShadow: tickColor === c ? '0 0 0 1px var(--accent)' : 'none',
+                            transition: 'box-shadow 0.15s',
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="settings-section">
                 <div className="settings-section-title">Google Drive Chat Backup</div>
                 <div style={{ padding: '0 16px 16px' }}>

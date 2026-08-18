@@ -57,10 +57,12 @@ function AppRoutes() {
 export default function App() {
   const [locked, setLocked] = useState(isAppLockEnabled() && !isUnlockedThisSession())
 
-  // Initialize theme from localStorage
+  // Initialize theme & wallpaper from localStorage
   useEffect(() => {
     const theme = localStorage.getItem('wavechat_theme') || 'default'
+    const wallpaper = localStorage.getItem('wavechat_wallpaper') || 'none'
     document.documentElement.setAttribute('data-theme', theme)
+    document.documentElement.setAttribute('data-wallpaper', wallpaper)
   }, [])
 
   // Re-check whenever the tab regains focus (covers the "left it open, came back" case)
