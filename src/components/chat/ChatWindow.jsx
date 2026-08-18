@@ -132,6 +132,24 @@ function EncryptionKeyMissingBanner({ userId, onReset }) {
   )
 }
 
+// Tick icon respecting read receipts setting and custom tick color from settings
+function MessageTick({ isRead, isDelivered }) {
+  const readReceiptsEnabled = localStorage.getItem('wavechat_read_receipts') !== 'false'
+  const tickColor = localStorage.getItem('wavechat_tick_color') || '#00a884'
+
+  if (!readReceiptsEnabled) {
+    // Read receipts off: always show grey double tick, no color
+    return <CheckCheck size={12} style={{ opacity: 0.5, color: 'inherit' }} />
+  }
+  if (isRead) {
+    return <CheckCheck size={12} style={{ color: tickColor }} />
+  }
+  if (isDelivered) {
+    return <CheckCheck size={12} style={{ opacity: 0.5, color: 'inherit' }} />
+  }
+  return <Check size={12} style={{ opacity: 0.5, color: 'inherit' }} />
+}
+
 function ReactionBar({ reactions, myId, onReact, messageId }) {
   if (!reactions?.length) return null
   const grouped = reactions.reduce((acc, r) => {
@@ -244,7 +262,12 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, m
           {!isDeleted && (
             <div className="bubble-meta">
               <span className="bubble-time">{formatMsgTime(msg.created_at)}</span>
-              {isOut && <CheckCheck size={12} style={{ opacity: 0.7 }} />}
+              {isOut && (
+                <MessageTick
+                  isRead={!!msg.read_at}
+                  isDelivered={!!msg.delivered_at || true}
+                />
+              )}
             </div>
           )}
         </div>
@@ -260,7 +283,7 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, m
 }
 
 export default function ChatWindow({ onBack, onOpenContactInfo }) {
-  const { user, profile } = useAuth()
+  const { user, profile, encryptionStatus, resetEncryptionKeys } = useAuth()
   const {
     activeConversation, messages, typingUsers, sendMessage, sendMediaMessage,
     deleteMessage, reactToMessage, toggleStarMessage, sendTypingIndicator, onlineUsers, uploadProgress,

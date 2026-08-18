@@ -38,8 +38,8 @@ export function AuthProvider({ children }) {
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
-    setProfile(data)
+      .maybeSingle()  // use maybeSingle so no error when row is absent
+    setProfile(data ?? null)
     await ensureEncryptionKeys(userId, data)
     setLoading(false)
   }

@@ -25,10 +25,13 @@ function ProfileRoute({ children }) {
   if (loading) return (
     <div className="loading-screen">
       <div className="spinner" />
+      <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Loading WaveChat...</span>
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (user && !profile?.display_name) return <Navigate to="/setup" replace />
+  // Only redirect to /setup when profile is fully loaded AND display_name is genuinely absent.
+  // When profile is null it might still be loading — the loading flag guards that above.
+  if (profile !== null && !profile?.display_name) return <Navigate to="/setup" replace />
   return children
 }
 
