@@ -565,11 +565,21 @@ export default function SettingsPage({ onBack }) {
               <div className="settings-section-title">Keyboard Shortcuts</div>
               {[
                 ['Ctrl + N', 'New chat'],
-                ['Ctrl + F', 'Search'],
-                ['Ctrl + ,', 'Settings'],
-                ['Esc', 'Close panel'],
+                ['Ctrl + G', 'New group'],
+                ['Ctrl + F', 'Search conversations'],
+                ['Ctrl + /', 'Search in current chat'],
+                ['Ctrl + ,', 'Open Settings'],
+                ['Ctrl + Shift + M', 'Mark all as read'],
+                ['Ctrl + Backspace', 'Delete message'],
+                ['Ctrl + R', 'Reply to message'],
+                ['Ctrl + E', 'React with emoji'],
+                ['Ctrl + D', 'Star / unstar message'],
+                ['Alt + ↑', 'Previous conversation'],
+                ['Alt + ↓', 'Next conversation'],
+                ['Esc', 'Close panel / cancel'],
                 ['Enter', 'Send message'],
-                ['Shift + Enter', 'New line'],
+                ['Shift + Enter', 'New line in message'],
+                ['Ctrl + Enter', 'Send (alternative)'],
               ].map(([key, action]) => (
                 <div key={key} className="settings-row" style={{ cursor: 'default' }}>
                   <div className="settings-row-left">
@@ -577,7 +587,7 @@ export default function SettingsPage({ onBack }) {
                       <div className="settings-row-label">{action}</div>
                     </div>
                   </div>
-                  <kbd style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', fontSize: 12, fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{key}</kbd>
+                  <kbd style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', fontSize: 12, fontFamily: 'monospace', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{key}</kbd>
                 </div>
               ))}
             </div>
@@ -680,6 +690,7 @@ export default function SettingsPage({ onBack }) {
                   const val = !readReceipts
                   setReadReceipts(val)
                   localStorage.setItem('wavechat_read_receipts', val ? 'true' : 'false')
+                  window.dispatchEvent(new Event('wavechat-settings-change'))
                 }}>
                   <div className="settings-row-left">
                     <div className="settings-row-icon" style={{ color: tickColor }}>✓✓</div>
@@ -692,6 +703,7 @@ export default function SettingsPage({ onBack }) {
                     const val = !readReceipts
                     setReadReceipts(val)
                     localStorage.setItem('wavechat_read_receipts', val ? 'true' : 'false')
+                    window.dispatchEvent(new Event('wavechat-settings-change'))
                   }} />
                 </div>
 
@@ -708,7 +720,11 @@ export default function SettingsPage({ onBack }) {
                       {['#00a884', '#7C5CFC', '#2979FF', '#e85d75', '#ff6f00', '#4caf50', '#00E5FF', '#FFD700'].map(c => (
                         <div
                           key={c}
-                          onClick={() => { setTickColor(c); localStorage.setItem('wavechat_tick_color', c) }}
+                          onClick={() => {
+                            setTickColor(c)
+                            localStorage.setItem('wavechat_tick_color', c)
+                            window.dispatchEvent(new Event('wavechat-settings-change'))
+                          }}
                           style={{
                             width: 22, height: 22, borderRadius: '50%',
                             background: c,

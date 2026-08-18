@@ -410,8 +410,56 @@ a { text-decoration: none; color: inherit; }
   gap: 2px;
 }
 
-/* Chat background pattern */
+/* Chat background patterns via data-wallpaper attribute on html */
+/* Default subtle ambient gradient */
 .messages-area {
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(124, 92, 252, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(124, 92, 252, 0.03) 0%, transparent 50%);
+}
+/* Dots pattern */
+html[data-wallpaper="dots"] .messages-area {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+/* Grid lines pattern */
+html[data-wallpaper="grid"] .messages-area {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+/* Wave/diagonal pattern */
+html[data-wallpaper="waves"] .messages-area {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(255,255,255,0.025) 8px,
+    rgba(255,255,255,0.025) 9px
+  );
+}
+/* Soft gradient */
+html[data-wallpaper="gradient"] .messages-area {
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(124, 92, 252, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at 100% 100%, rgba(0, 168, 132, 0.08) 0%, transparent 60%);
+}
+/* Dark topaz */
+html[data-wallpaper="topaz"] .messages-area {
+  background-image:
+    radial-gradient(ellipse at 30% 30%, rgba(0, 229, 255, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(0, 229, 255, 0.05) 0%, transparent 50%),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 12px,
+      rgba(0, 229, 255, 0.02) 12px,
+      rgba(0, 229, 255, 0.02) 13px
+    );
+}
+/* None - use default */
+html[data-wallpaper="none"] .messages-area {
   background-image:
     radial-gradient(ellipse at 20% 50%, rgba(124, 92, 252, 0.04) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 20%, rgba(124, 92, 252, 0.03) 0%, transparent 50%);

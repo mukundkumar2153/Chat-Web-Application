@@ -133,21 +133,21 @@ function EncryptionKeyMissingBanner({ userId, onReset }) {
 }
 
 // Tick icon respecting read receipts setting and custom tick color from settings
-function MessageTick({ isRead, isDelivered }) {
-  const readReceiptsEnabled = localStorage.getItem('wavechat_read_receipts') !== 'false'
-  const tickColor = localStorage.getItem('wavechat_tick_color') || '#00a884'
-
+function MessageTick({ isSent, isDelivered, isRead, tickColor, readReceiptsEnabled }) {
   if (!readReceiptsEnabled) {
-    // Read receipts off: always show grey double tick, no color
+    // Read receipts off: always show grey double tick
     return <CheckCheck size={12} style={{ opacity: 0.5, color: 'inherit' }} />
   }
   if (isRead) {
-    return <CheckCheck size={12} style={{ color: tickColor }} />
+    // Colored double tick = other user has read the message
+    return <CheckCheck size={12} style={{ color: tickColor, transition: 'color 0.3s' }} />
   }
   if (isDelivered) {
-    return <CheckCheck size={12} style={{ opacity: 0.5, color: 'inherit' }} />
+    // Grey double tick = message delivered to server
+    return <CheckCheck size={12} style={{ opacity: 0.55, color: 'inherit' }} />
   }
-  return <Check size={12} style={{ opacity: 0.5, color: 'inherit' }} />
+  // Single tick = just sent (optimistic, not yet confirmed in DB for a moment)
+  return <Check size={12} style={{ opacity: 0.55, color: 'inherit' }} />
 }
 
 function ReactionBar({ reactions, myId, onReact, messageId }) {
@@ -169,7 +169,7 @@ function ReactionBar({ reactions, myId, onReact, messageId }) {
   )
 }
 
-function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, myId, conversationId, onOpenLightbox, highlight }) {
+function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, myId, conversationId, onOpenLightbox, highlight, otherUserLastReadAt, tickColor, readReceiptsEnabled }) {
   const [showActions, setShowActions] = useState(false)
   const [showEmojiQuick, setShowEmojiQuick] = useState(false)
   const isDeleted = !!msg.deleted_at
@@ -264,8 +264,10 @@ function MessageBubble({ msg, isOut, onReply, onDelete, onReact, onToggleStar, m
               <span className="bubble-time">{formatMsgTime(msg.created_at)}</span>
               {isOut && (
                 <MessageTick
-                  isRead={!!msg.read_at}
-                  isDelivered={!!msg.delivered_at || true}
+                  isRead={!!(otherUserLastReadAt && msg.created_at && new Date(msg.created_at) <= new Date(otherUserLastReadAt))}
+                  isDelivered={true}
+                  tickColor={tickColor}
+                  readReceiptsEnabled={readReceiptsEnabled}
                 />
               )}
             </div>
@@ -287,8 +289,12 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
   const {
     activeConversation, messages, typingUsers, sendMessage, sendMediaMessage,
     deleteMessage, reactToMessage, toggleStarMessage, sendTypingIndicator, onlineUsers, uploadProgress,
+    otherUserLastReadAt,
   } = useChat()
   const { startCall } = useCall()
+  // read receipt settings — stored in localStorage and updated when settings change
+  const [tickColor, setTickColor] = useState(() => localStorage.getItem('wavechat_tick_color') || '#00a884')
+  const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => localStorage.getItem('wavechat_read_receipts') !== 'false')
   const [text, setText] = useState('')
   const [replyTo, setReplyTo] = useState(null)
   const [showEmoji, setShowEmoji] = useState(false)
@@ -341,6 +347,20 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
     return () => document.removeEventListener('pointerdown', handleOutside)
   }, [])
 
+  // Re-read tick settings when they change (same-tab storage doesn't fire 'storage' event)
+  useEffect(() => {
+    function syncSettings() {
+      setTickColor(localStorage.getItem('wavechat_tick_color') || '#00a884')
+      setReadReceiptsEnabled(localStorage.getItem('wavechat_read_receipts') !== 'false')
+    }
+    window.addEventListener('storage', syncSettings)
+    window.addEventListener('wavechat-settings-change', syncSettings)
+    return () => {
+      window.removeEventListener('storage', syncSettings)
+      window.removeEventListener('wavechat-settings-change', syncSettings)
+    }
+  }, [])
+
   function handleTyping(e) {
     setText(e.target.value)
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
@@ -358,7 +378,12 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+    // Enter without Shift = send; Ctrl+Enter also sends
+    if ((e.key === 'Enter' && !e.shiftKey) || (e.ctrlKey && e.key === 'Enter')) {
+      e.preventDefault(); handleSend()
+    }
+    // Ctrl+/ = open in-chat search
+    if (e.ctrlKey && e.key === '/') { e.preventDefault(); setShowSearch(p => !p) }
   }
 
   function handleEmojiSelect(emojiData) {
@@ -585,6 +610,9 @@ export default function ChatWindow({ onBack, onOpenContactInfo }) {
               onToggleStar={toggleStarMessage}
               onOpenLightbox={setLightboxSrc}
               highlight={searchMatches[searchMatchIdx]?.id === msg.id}
+              otherUserLastReadAt={otherUserLastReadAt}
+              tickColor={tickColor}
+              readReceiptsEnabled={readReceiptsEnabled}
             />
           )
         })}

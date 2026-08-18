@@ -21,6 +21,8 @@ export function ChatProvider({ children }) {
   const [typingUsers, setTypingUsers] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
   const [uploadProgress, setUploadProgress] = useState(null) // { fileName, percent } | null
+  // Tracks when the OTHER user last read this conversation (for WhatsApp-style ticks)
+  const [otherUserLastReadAt, setOtherUserLastReadAt] = useState(null)
 
   const activeConvRef = useRef(null)
   useEffect(() => { activeConvRef.current = activeConversation }, [activeConversation])
@@ -217,11 +219,23 @@ export function ChatProvider({ children }) {
     setMessages(decrypted)
     setLoadingMessages(false)
 
+    // Mark this user as having read up to now
     await supabase
       .from('conversation_members')
       .update({ last_read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
       .eq('user_id', user.id)
+
+    // Fetch the other member's last_read_at (for tick coloring)
+    if (!activeConvRef.current?.is_group) {
+      const { data: otherMember } = await supabase
+        .from('conversation_members')
+        .select('last_read_at')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', user.id)
+        .maybeSingle()
+      setOtherUserLastReadAt(otherMember?.last_read_at || null)
+    }
   }, [user, decryptMessageRow])
 
   // ---------- send text ----------
@@ -410,6 +424,17 @@ export function ChatProvider({ children }) {
       }, () => {
         if (activeConversation?.id) fetchMessages(activeConversation.id)
       })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversation_members',
+        filter: `conversation_id=eq.${activeConversation.id}`,
+      }, (payload) => {
+        // When the OTHER user updates last_read_at, update our tick coloring
+        if (payload.new.user_id !== user.id && payload.new.last_read_at) {
+          setOtherUserLastReadAt(payload.new.last_read_at)
+        }
+      })
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.user_id === user.id) return
         setTypingUsers(prev => ({ ...prev, [payload.payload.user_id]: payload.payload.display_name }))
@@ -492,6 +517,7 @@ export function ChatProvider({ children }) {
       typingUsers,
       searchQuery, setSearchQuery,
       uploadProgress,
+      otherUserLastReadAt,
       fetchConversations,
       fetchMessages,
       sendMessage,
