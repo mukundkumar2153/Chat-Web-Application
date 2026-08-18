@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import {
   ArrowLeft, Camera, Bell, Lock, Shield, UserX, LogOut, Trash2,
   ChevronRight, Eye, ShieldCheck, AlertTriangle, KeyRound,
