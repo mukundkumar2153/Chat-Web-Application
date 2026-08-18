@@ -26,6 +26,7 @@ export function CallProvider({ children }) {
   const dialingAudioRef = useRef(null)
   const ringAudioRef = useRef(null)
   const pendingOfferRef = useRef(null)
+  const iceCandidatesQueueRef = useRef([])
 
   // Call tracking refs
   const callStartTimeRef = useRef(null)
@@ -88,6 +89,7 @@ export function CallProvider({ children }) {
     stopStream(localStreamRef.current)
     localStreamRef.current = null
     pendingOfferRef.current = null
+    iceCandidatesQueueRef.current = []
     callMetaRef.current = null
     callStartTimeRef.current = null
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null }
@@ -172,13 +174,16 @@ export function CallProvider({ children }) {
           await pcRef.current.setRemoteDescription(
             new RTCSessionDescription({ type: 'answer', sdp: msg.payload.sdp })
           )
+          await processQueuedIceCandidates()
         }
       })
       .on('broadcast', { event: SIGNAL.ICE }, async (msg) => {
         if (msg.payload.from === user.id) return
         try {
-          if (pcRef.current && msg.payload.candidate) {
+          if (pcRef.current && pcRef.current.remoteDescription && pcRef.current.remoteDescription.type) {
             await pcRef.current.addIceCandidate(new RTCIceCandidate(msg.payload.candidate))
+          } else {
+            iceCandidatesQueueRef.current.push(msg.payload.candidate)
           }
         } catch (e) { console.warn('ICE error:', e) }
       })
@@ -206,10 +211,24 @@ export function CallProvider({ children }) {
     return channel
   }
 
+  async function processQueuedIceCandidates() {
+    if (!pcRef.current || !pcRef.current.remoteDescription) return
+    const queue = [...iceCandidatesQueueRef.current]
+    iceCandidatesQueueRef.current = []
+    for (const candidate of queue) {
+      try {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate))
+      } catch (e) {
+        console.warn('Error adding queued ICE candidate:', e)
+      }
+    }
+  }
+
   async function processOffer(sdp) {
     console.log('⚙️ Processing offer...')
     const pc = await setupPeerConnection(localStreamRef.current)
     await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }))
+    await processQueuedIceCandidates()
     const answer = await pc.createAnswer()
     await pc.setLocalDescription(answer)
     broadcast(SIGNAL.ANSWER, { sdp: answer.sdp })

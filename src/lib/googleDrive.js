@@ -28,6 +28,10 @@ export function authenticateGoogleDrive({ clientId, onSuccess, onError }) {
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${targetClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=consent`
 
   const popup = window.open(authUrl, 'google_auth_popup', 'width=500,height=600')
+  if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+    onError?.(new Error('Popup blocked by browser. Please allow popups for this site and try again.'))
+    return
+  }
 
   const timer = setInterval(() => {
     try {

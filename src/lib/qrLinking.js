@@ -103,7 +103,7 @@ export function scanAndConnectDevice({ qrDataString, deviceName, onSuccess, onEr
         const decryptedBytes = unwrapKeyForMe({
           encryptedKeyBase64: encryptedPrivateKey,
           nonceBase64: nonce,
-          senderPublicKeyBase64: tempKeypair.publicKey,
+          senderPublicKeyBase64: primaryPublicKey,
           mySecretKeyBase64: tempKeypair.secretKey,
         })
 

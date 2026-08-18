@@ -255,7 +255,7 @@ export function ChatProvider({ children }) {
 
     if (!error && data) {
       const decrypted = await decryptMessageRow(data, conversationId)
-      setMessages(prev => [...prev, decrypted])
+      setMessages(prev => prev.some(m => m.id === decrypted.id) ? prev : [...prev, decrypted])
     }
     return { data, error }
   }, [user, decryptMessageRow])
@@ -314,7 +314,7 @@ export function ChatProvider({ children }) {
 
     if (!error && data) {
       const decrypted = await decryptMessageRow(data, conversationId)
-      setMessages(prev => [...prev, decrypted])
+      setMessages(prev => prev.some(m => m.id === decrypted.id) ? prev : [...prev, decrypted])
     }
     return { data, error }
   }, [user, decryptMessageRow])
@@ -391,7 +391,7 @@ export function ChatProvider({ children }) {
           const { data: senderProf } = await supabase.from('profiles').select('id, display_name, avatar_url').eq('id', msgData.sender_id).maybeSingle()
           const fullMsg = { ...msgData, profiles: senderProf || null }
           const decrypted = await decryptMessageRow(fullMsg, activeConversation.id)
-          setMessages(prev => [...prev, decrypted])
+          setMessages(prev => prev.some(m => m.id === decrypted.id) ? prev : [...prev, decrypted])
         }
         fetchConversations()
       })
@@ -402,6 +402,13 @@ export function ChatProvider({ children }) {
         filter: `conversation_id=eq.${activeConversation.id}`,
       }, (payload) => {
         setMessages(prev => prev.map(m => m.id === payload.new.id ? { ...m, deleted_at: payload.new.deleted_at } : m))
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'message_reactions',
+      }, () => {
+        if (activeConversation?.id) fetchMessages(activeConversation.id)
       })
       .on('broadcast', { event: 'typing' }, (payload) => {
         if (payload.payload.user_id === user.id) return
